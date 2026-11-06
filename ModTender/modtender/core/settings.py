@@ -19,7 +19,13 @@ class Settings:
     theme_overrides: dict = field(default_factory=dict)  # e.g. {"accent": "#4f8cff"}
     check_updates_on_start: bool = False
     backup_before_fix: bool = True
-    last_version: str = ""  # version that ran last time, to say "Updated to …" once
+    last_version: str = ""
+    # Personalization
+    text_scale: float = 1.0  # 0.9 / 1.0 / 1.15 / 1.3
+    compact: bool = False
+    start_page: str = "dashboard"
+    show_greeting: bool = True
+    favorite_games: list = field(default_factory=list)  # version that ran last time, to say "Updated to …" once
     update_repo: str = ""  # overrides modtender.UPDATE_REPO when set
 
     @property

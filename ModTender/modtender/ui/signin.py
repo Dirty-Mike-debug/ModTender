@@ -20,6 +20,17 @@ def avatar(user: users.User, size: int = 64) -> QPixmap:
     pm.fill(Qt.GlobalColor.transparent)
     p = QPainter(pm)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    pic = user.avatar_path
+    if pic is not None and pic.exists():
+        from PySide6.QtGui import QPainterPath
+        img = QPixmap(str(pic))
+        if not img.isNull():
+            clip = QPainterPath()
+            clip.addEllipse(QRectF(0, 0, size * 2, size * 2))
+            p.setClipPath(clip)
+            p.drawPixmap(pm.rect(), img)
+            p.end()
+            return pm
     p.setBrush(QColor(user.color or theme.ACCENT))
     p.setPen(Qt.PenStyle.NoPen)
     p.drawEllipse(QRectF(0, 0, size * 2, size * 2))

@@ -69,7 +69,7 @@ def sign_in(app, force: bool):
     first = users.ensure_first_user()
     settings.use_user(first.id)  # show the sign-in screen in the last user's theme
     s = settings.load_settings()
-    theme.apply(app, s.theme_preset, s.theme_overrides)
+    theme.apply(app, s.theme_preset, s.theme_overrides, s.text_scale, s.compact)
     user = first
     if force or users.needs_signin():
         dlg = SignInDialog()

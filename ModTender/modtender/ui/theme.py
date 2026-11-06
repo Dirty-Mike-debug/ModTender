@@ -43,6 +43,8 @@ EDITABLE = [("accent", "Accent"), ("bg", "Background"), ("sidebar", "Sidebar"),
 BG = SIDEBAR = SURFACE = BORDER = TEXT = MUTED = ACCENT = CRITICAL = WARNING = INFO = ""
 SEVERITY_COLORS: dict[str, str] = {}
 CURRENT: Palette = PRESETS["Midnight"]
+COMPACT = False  # tighter rows and margins
+TEXT_SCALES = {"Small": 0.9, "Normal": 1.0, "Large": 1.15, "Extra large": 1.3}
 
 
 def _mix(a: str, b: str, t: float) -> str:
@@ -73,8 +75,10 @@ def score_color(score: int) -> str:
     return ACCENT if score >= 90 else WARNING if score >= 70 else CRITICAL
 
 
-def apply(app, preset: str = "Midnight", overrides: dict | None = None) -> Palette:
-    global BG, SIDEBAR, SURFACE, BORDER, TEXT, MUTED, ACCENT, CRITICAL, WARNING, INFO, CURRENT
+def apply(app, preset: str = "Midnight", overrides: dict | None = None, scale: float = 1.0,
+          compact: bool = False) -> Palette:
+    global BG, SIDEBAR, SURFACE, BORDER, TEXT, MUTED, ACCENT, CRITICAL, WARNING, INFO, CURRENT, COMPACT
+    COMPACT = compact
     p = resolve(preset, overrides)
     CURRENT = p
     BG, SIDEBAR, SURFACE, BORDER, TEXT, MUTED = p.bg, p.sidebar, p.surface, p.border, p.text, p.muted
@@ -82,7 +86,13 @@ def apply(app, preset: str = "Midnight", overrides: dict | None = None) -> Palet
     SEVERITY_COLORS.clear()
     SEVERITY_COLORS.update(critical=CRITICAL, warning=WARNING, info=INFO)
     if app is not None:
-        app.setStyleSheet(stylesheet(p))
+        css = stylesheet(p)
+        if scale and abs(scale - 1.0) > 0.01:
+            import re
+            css = re.sub(r"(\d+(?:\.\d+)?)pt", lambda m: f"{float(m.group(1)) * scale:.1f}pt", css)
+        if compact:
+            css = css.replace("padding: 6px 14px", "padding: 4px 10px").replace("padding: 8px 12px", "padding: 5px 10px")
+        app.setStyleSheet(css)
     return p
 
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0
+- **Personalize ModTender** (Settings → Personalize, saved per user):
+  - Profile picture: pick any image (cropped to a circle), or keep your initial and choose its color
+  - A greeting on the Dashboard ("Good evening, …")
+  - Favorite games: star a game with ☆ next to the game list to pin it to the top
+  - Choose which page ModTender opens on
+  - Text size (Small to Extra large) and a compact layout that fits more rows on screen
+
 ## 0.9.0
 - **User accounts on this PC.** Everyone can have their own ModTender settings, theme, games and backup folder. Pick who's using ModTender on the new sign-in screen, and switch users from the bottom of the sidebar.
   - Optional PIN per user (after 5 wrong tries the sign-in waits 30 seconds)

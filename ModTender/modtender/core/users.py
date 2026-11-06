@@ -28,6 +28,11 @@ class User:
     salt: str = ""
     created: str = ""
     color: str = ""  # avatar color
+    avatar: str = ""  # picture file name inside the user's folder, if they chose one
+
+    @property
+    def avatar_path(self):
+        return (paths.data_dir() / "users" / self.id / self.avatar) if self.avatar else None
 
     @property
     def has_pin(self) -> bool:

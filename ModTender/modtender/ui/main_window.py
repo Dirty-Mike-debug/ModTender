@@ -47,7 +47,7 @@ class MainWindow(QMainWindow):
         self.backups = []
         self._tasks: list[Task] = []
         self._busy = False
-        self.current_page = "dashboard"
+        self.current_page = "dashboard"  # replaced by the user's start page below
         self.mod_sources = sources.load_sources()
 
         self.progress = QProgressBar()
@@ -56,6 +56,8 @@ class MainWindow(QMainWindow):
         self.progress.hide()
         self.statusBar().addPermanentWidget(self.progress)
 
+        if self.settings.start_page in dict(NAV):
+            self.current_page = self.settings.start_page
         self.apply_theme(rebuild=False)
         self._build_ui()
         self.reload_games()
@@ -116,7 +118,16 @@ class MainWindow(QMainWindow):
         lay.addWidget(QLabel("GAME", objectName="SideLabel"))
         self.game_box = QComboBox()
         self.game_box.currentIndexChanged.connect(self._on_game_changed)
-        lay.addWidget(self.game_box)
+        game_row = QHBoxLayout()
+        game_row.setSpacing(6)
+        game_row.addWidget(self.game_box, 1)
+        self.star = QPushButton("☆")
+        self.star.setFixedWidth(34)
+        self.star.setToolTip("Pin this game to the top of the list")
+        self.star.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.star.clicked.connect(self.toggle_favorite)
+        game_row.addWidget(self.star)
+        lay.addLayout(game_row)
         add = QPushButton("Add game", objectName="Ghost")
         add.setIcon(icon("plus", theme.MUTED))
         add.setIconSize(QSize(14, 14))
@@ -175,7 +186,8 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------ theme
 
     def apply_theme(self, rebuild: bool = True):
-        theme.apply(QApplication.instance(), self.settings.theme_preset, self.settings.theme_overrides)
+        theme.apply(QApplication.instance(), self.settings.theme_preset, self.settings.theme_overrides,
+                    self.settings.text_scale, self.settings.compact)
         if rebuild:
             # Rebuild after the current click finishes: the button that was clicked gets replaced.
             QTimer.singleShot(0, self._build_ui)
@@ -198,17 +210,41 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------ games
 
+    def _sort_games(self):
+        favs = self.settings.favorite_games
+        self.games.sort(key=lambda g: (g.id not in favs, favs.index(g.id) if g.id in favs else 0))
+
+    def _update_star(self):
+        fav = bool(self.game and self.game.id in self.settings.favorite_games)
+        self.star.setText("★" if fav else "☆")
+        self.star.setStyleSheet(f"color: {theme.WARNING};" if fav else "")
+        self.star.setToolTip("Unpin this game" if fav else "Pin this game to the top of the list")
+
+    def toggle_favorite(self):
+        if not self.game:
+            return
+        favs = self.settings.favorite_games
+        if self.game.id in favs:
+            favs.remove(self.game.id)
+        else:
+            favs.append(self.game.id)
+        self.save_settings()
+        self._sort_games()
+        self._fill_game_box()
+
     def _fill_game_box(self):
         self.game_box.blockSignals(True)
         self.game_box.clear()
         for g in self.games:
-            self.game_box.addItem(g.name, g.id)
+            self.game_box.addItem(("★  " if g.id in self.settings.favorite_games else "") + g.name, g.id)
         if self.game in self.games:
             self.game_box.setCurrentIndex(self.games.index(self.game))
         self.game_box.blockSignals(False)
+        self._update_star()
 
     def reload_games(self, select: str | None = None):
         self.games = detect_games(self.settings.custom_games)
+        self._sort_games()
         log.info("Games found: %s", ", ".join(f"{g.name} [{g.mods_dir}]" for g in self.games) or "none")
         wanted = select or self.settings.last_game
         self.game = None
@@ -228,6 +264,7 @@ class MainWindow(QMainWindow):
         if self.game is self.games[idx] and self.scan is not None:
             return
         self.game = self.games[idx]
+        self._update_star()
         self.scan, self.issues = None, []
         self.settings.last_game = self.game.id
         self.save_settings()
@@ -484,6 +521,39 @@ class MainWindow(QMainWindow):
             self.user.name = name.strip()[:40]
             users.update_user(self.user)
             self.apply_theme()  # rebuild so the sidebar shows the new name
+
+    def choose_avatar(self):
+        from PySide6.QtGui import QImage
+        from ..core import users
+        path, _ = QFileDialog.getOpenFileName(self, "Choose a picture", str(Path.home() / "Pictures"),
+                                              "Images (*.png *.jpg *.jpeg *.bmp *.gif *.webp)")
+        if not path:
+            return
+        img = QImage(path)
+        if img.isNull():
+            QMessageBox.warning(self, "Picture", "That file couldn't be opened as a picture.")
+            return
+        side = min(img.width(), img.height())  # crop to a centered square, keep it small
+        img = img.copy((img.width() - side) // 2, (img.height() - side) // 2, side, side).scaled(
+            256, 256, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        img.save(str(users.user_dir(self.user.id) / "avatar.png"), "PNG")
+        self.user.avatar = "avatar.png"
+        users.update_user(self.user)
+        self.apply_theme()
+
+    def remove_avatar(self):
+        from ..core import users
+        if self.user.avatar_path:
+            self.user.avatar_path.unlink(missing_ok=True)
+        self.user.avatar = ""
+        users.update_user(self.user)
+        self.apply_theme()
+
+    def set_avatar_color(self, color: str):
+        from ..core import users
+        self.user.color = color
+        users.update_user(self.user)
+        self.apply_theme()
 
     def edit_pin(self):
         from .signin import PinDialog

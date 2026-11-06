@@ -46,7 +46,7 @@ def make_table(headers: list[str]) -> QTableWidget:
     t = QTableWidget(0, len(headers))
     t.setHorizontalHeaderLabels(headers)
     t.verticalHeader().setVisible(False)
-    t.verticalHeader().setDefaultSectionSize(36)
+    t.verticalHeader().setDefaultSectionSize(28 if theme.COMPACT else 36)
     t.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
     t.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
     t.setAlternatingRowColors(True)
@@ -75,12 +75,19 @@ class Page(QWidget):
         self.setObjectName("Page")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.root = QVBoxLayout(self)
-        self.root.setContentsMargins(32, 26, 32, 22)
-        self.root.setSpacing(16)
+        if theme.COMPACT:
+            self.root.setContentsMargins(20, 14, 20, 12)
+            self.root.setSpacing(10)
+        else:
+            self.root.setContentsMargins(32, 26, 32, 22)
+            self.root.setSpacing(16)
         head = QHBoxLayout()
         head.setSpacing(12)
         col = QVBoxLayout()
         col.setSpacing(3)
+        self.greeting = QLabel("", objectName="Muted")
+        self.greeting.hide()
+        col.addWidget(self.greeting)
         self.heading = QLabel(self.title, objectName="PageTitle")
         self.subheading = QLabel("", objectName="Muted")
         self.subheading.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -153,6 +160,15 @@ class DashboardPage(Page):
     def refresh(self):
         game, scan, issues = self.win.game, self.win.scan, self.win.issues
         self.issue_table.setRowCount(0)
+        if self.win.settings.show_greeting and self.win.user is not None:
+            from datetime import datetime
+            h = datetime.now().hour
+            part = "morning" if 5 <= h < 12 else "afternoon" if h < 18 else "evening"
+            self.greeting.setText(f"Good {part}, {self.win.user.name}")
+            self.greeting.setStyleSheet("font-size: 10.5pt;")
+            self.greeting.show()
+        else:
+            self.greeting.hide()
         self.fix_all.setVisible(any(i.fixable and i.safe for i in issues))
         if game is None:
             self.heading.setText("Welcome to ModTender")
@@ -521,6 +537,9 @@ class SettingsPage(Page):
         scroll.setWidget(body)
         self.root.addWidget(scroll, 1)
 
+        if self.win.user is not None:
+            self._build_personalize()
+            self.body.addWidget(divider())
         self._build_appearance()
         self.body.addWidget(divider())
         self._build_general()
@@ -541,6 +560,77 @@ class SettingsPage(Page):
             h = QLabel(hint, objectName="Muted")
             h.setWordWrap(True)
             self.body.addWidget(h)
+
+    def _build_personalize(self):
+        from .signin import avatar
+        from ..core.users import AVATAR_COLORS
+        self._section("Personalize", "Make ModTender yours. These settings belong to your user only.")
+        top = QHBoxLayout()
+        top.setSpacing(16)
+        pic = QLabel()
+        pic.setPixmap(avatar(self.win.user, 32))
+        pic.setFixedSize(64, 64)
+        pic.setScaledContents(True)
+        top.addWidget(pic)
+        col = QVBoxLayout()
+        col.setSpacing(8)
+        btns = QHBoxLayout()
+        btns.addWidget(button("Choose picture…", self.win.choose_avatar, icon_name="folder"))
+        if self.win.user.avatar:
+            btns.addWidget(button("Remove picture", self.win.remove_avatar))
+        btns.addStretch()
+        col.addLayout(btns)
+        sw = QHBoxLayout()
+        sw.setSpacing(8)
+        sw.addWidget(QLabel("Avatar color", objectName="Muted"))
+        for color in AVATAR_COLORS:
+            b = QPushButton(objectName="Swatch")
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            ring = theme.TEXT if color.lower() == (self.win.user.color or "").lower() else "transparent"
+            b.setStyleSheet(f"QPushButton#Swatch {{ background: {color}; border: 2px solid {ring}; }}")
+            b.clicked.connect(lambda _=False, c=color: self.win.set_avatar_color(c))
+            sw.addWidget(b)
+        sw.addStretch()
+        col.addLayout(sw)
+        top.addLayout(col, 1)
+        self.body.addLayout(top)
+
+        form = QFormLayout()
+        form.setSpacing(12)
+        self.text_size = QComboBox()
+        self.text_size.addItems(list(theme.TEXT_SCALES))
+        self.text_size.setFixedWidth(180)
+        self.text_size.currentTextChanged.connect(self._personal_changed)
+        form.addRow("Text size", self.text_size)
+        self.compact = QCheckBox("Compact layout: smaller spacing, more rows on screen")
+        self.compact.toggled.connect(self._personal_changed)
+        form.addRow("Layout", self.compact)
+        self.start_page = QComboBox()
+        from .main_window import NAV
+        for key, label in NAV:
+            self.start_page.addItem(label, key)
+        self.start_page.setFixedWidth(180)
+        self.start_page.currentIndexChanged.connect(self._personal_changed)
+        form.addRow("Open on", self.start_page)
+        self.greet = QCheckBox("Show a greeting on the Dashboard")
+        self.greet.toggled.connect(self._personal_changed)
+        form.addRow("Greeting", self.greet)
+        self.body.addLayout(form)
+        hint = QLabel("Tip: star a game with the ☆ next to the game list to pin it to the top.", objectName="Muted")
+        self.body.addWidget(hint)
+
+    def _personal_changed(self, *_):
+        if self._loading:
+            return
+        s = self.win.settings
+        scale = theme.TEXT_SCALES.get(self.text_size.currentText(), 1.0)
+        look_changed = abs(scale - s.text_scale) > 0.01 or self.compact.isChecked() != s.compact
+        s.text_scale, s.compact = scale, self.compact.isChecked()
+        s.start_page = self.start_page.currentData() or "dashboard"
+        s.show_greeting = self.greet.isChecked()
+        self.win.save_settings()
+        if look_changed:
+            self.win.apply_theme()
 
     def _build_appearance(self):
         self._section("Appearance", "Pick a theme, then make any color your own.")
@@ -667,6 +757,13 @@ class SettingsPage(Page):
     def refresh(self):
         self._loading = True
         s = self.win.settings
+        if self.win.user is not None:
+            name = next((n for n, v in theme.TEXT_SCALES.items() if abs(v - s.text_scale) < 0.01), "Normal")
+            self.text_size.setCurrentText(name)
+            self.compact.setChecked(s.compact)
+            i = self.start_page.findData(s.start_page)
+            self.start_page.setCurrentIndex(i if i >= 0 else 0)
+            self.greet.setChecked(s.show_greeting)
         self.preset.setCurrentText(s.theme_preset if s.theme_preset in theme.PRESETS else "Midnight")
         self.backup_dir.setText(s.backup_dir)
         self.keep.setValue(s.keep_backups)

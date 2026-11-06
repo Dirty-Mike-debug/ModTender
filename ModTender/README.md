@@ -1,4 +1,4 @@
-# ModTender 0.9
+# ModTender 0.10
 
 A mod manager and safety tool for Windows. It finds your games, checks every mod for problems, explains how to fix them, and keeps backups you can restore at any time.
 
@@ -35,7 +35,8 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
 - **Backups**: a one-click snapshot of the whole mods folder. Restoring never deletes anything: your current folder is renamed to `mods.before-restore-…` first. The oldest backups are cleaned up automatically (10 per game by default).
 - **Appearance**: four built-in themes (Midnight, Graphite, Nord, Daylight), eight one-click accent colors, and a color picker for the background, sidebar, cards, borders and text. Settings → Appearance.
 - **Updates**: *Check for updates* (bottom of the sidebar, or Settings → Updates) finds new versions on GitHub Releases. *Update now* downloads and installs it, then restarts ModTender. The previous version is kept in `.modtender-update\previous` and restored automatically if an install fails.
-- **Users**: each person on the PC gets their own settings, theme and games, with an optional PIN. Online accounts are planned alongside Free vs Pro.
+- **Users**: each person on the PC gets their own settings, theme and games, with an optional PIN.
+- **Personalize**: profile picture or colored initial, Dashboard greeting, favorite games pinned to the top, start page, text size and compact layout. Online accounts are planned alongside Free vs Pro.
 - **Export report**: a plain-text summary to paste when asking for help on a forum or Discord.
 
 ## Supported games out of the box
