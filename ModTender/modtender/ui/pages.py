@@ -216,8 +216,10 @@ class DashboardPage(Page):
         if game.workshop_only:
             self.backup.set("Not needed", "Steam keeps Workshop mods: resubscribe to get them back", theme.SUCCESS)
         elif last:
-            self.backup.set(last.created.strftime("%b %d"), last.created.strftime("%H:%M") +
-                            f" · {len(self.win.backups)} saved")
+            ch = self.win.changes_since(last)
+            extra = f" · {ch.count} change{'s' if ch.count != 1 else ''} since" if ch and ch.count else ""
+            self.backup.set(last.created.strftime("%b %d"), last.created.strftime("%H:%M") + f" · {last.note or 'Manual'}"
+                            + extra, theme.WARNING if extra else None)
         else:
             self.backup.set("None", "Back up before you change anything big", theme.WARNING)
 
@@ -231,8 +233,9 @@ class ModsPage(Page):
     def __init__(self, win):
         super().__init__(win)
         self.actions.addWidget(button("Show in Explorer", self._reveal, icon_name="folder"))
-        self.actions.addWidget(button("Workshop page", self._workshop, icon_name="external",
-                                      tip="Open the selected Steam Workshop item on Steam"))
+        self.ws_button = button("Workshop page", self._workshop, icon_name="external",
+                                tip="Open the selected Steam Workshop item on Steam")
+        self.actions.addWidget(self.ws_button)
         self.actions.addWidget(button("Disable", lambda: win.set_enabled(self.selected(), False),
                                       tip="Moves the mod out of the game's folder. Nothing is deleted."))
         self.actions.addWidget(button("Enable", lambda: win.set_enabled(self.selected(), True), "Primary"))
@@ -281,6 +284,7 @@ class ModsPage(Page):
         scan = self.win.scan
         self.table.setSortingEnabled(False)
         self.table.setRowCount(0)
+        self.ws_button.setVisible(bool(scan and any(m.workshop for m in scan.mods)))
         if scan is None:
             self.subheading.setText("Scan a game to see its mods.")
             return
@@ -441,26 +445,88 @@ class BackupsPage(Page):
         self.actions.addWidget(button("Open folder", win.open_backup_folder, icon_name="folder"))
         self.actions.addWidget(button("Quarantine", win.open_quarantine_folder, icon_name="folder",
                                       tip="Files that Fix moved out of your mods folder"))
-        self.actions.addWidget(button("Delete", self._delete, "Danger"))
-        self.actions.addWidget(button("Restore", self._restore))
-        self.actions.addWidget(button("Back up now", win.create_backup, "Primary", "save"))
-        self.table = make_table(["Created", "Items", "Mods size", "Backup file"])
+        self.actions.addWidget(button("Back up now", lambda: win.create_backup(), "Primary", "save"))
+
+        # Automatic backups for this game
+        auto = QHBoxLayout()
+        auto.setSpacing(10)
+        auto.addWidget(QLabel("Automatic backups", objectName="Section"))
+        self.every = QComboBox()
+        self.every.addItem("Off", "off")
+        self.every.addItem("Every day", "daily")
+        self.every.addItem("Every week", "weekly")
+        self.every.setFixedWidth(150)
+        self.every.currentIndexChanged.connect(self._auto_changed)
+        auto.addWidget(self.every)
+        self.on_change = QCheckBox("Also back up when my mods change")
+        self.on_change.toggled.connect(self._auto_changed)
+        auto.addWidget(self.on_change)
+        auto.addStretch()
+        self.rollback = button("Roll back to working setup", lambda: win.roll_back(), icon_name="scan",
+                               tip="Put your mods back the way they were in the backup you marked as working")
+        auto.addWidget(self.rollback)
+        self.root.addLayout(auto)
+        self.auto_hint = QLabel("", objectName="Muted")
+        self.auto_hint.setWordWrap(True)
+        self.root.addWidget(self.auto_hint)
+
+        self.table = make_table(["Created", "Type", "Items", "Mods size", "New space used"])
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         h = self.table.horizontalHeader()
-        for c in (0, 1, 2):
+        h.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        for c in (2, 3, 4):
             h.setSectionResizeMode(c, QHeaderView.ResizeMode.ResizeToContents)
-        h.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self.table.itemSelectionChanged.connect(self._selected)
+        self.table.cellDoubleClicked.connect(lambda *_: self._changes())
         self.root.addWidget(self.table, 1)
-        note = QLabel("Restoring never deletes anything: your current mods folder is renamed to "
-                      "'mods.before-restore-…' next to the original, so you can always go back. "
-                      "Files that Fix moves out of your mods folder go to Quarantine.",
-                      objectName="Muted")
+
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        self.changes_btn = button("What changed since?", self._changes,
+                                  tip="Compare the selected backup with your mods right now")
+        self.pin_btn = button("Mark as working", self._pin,
+                              tip="Remember this backup as a setup that worked. It's never deleted automatically.")
+        self.restore_btn = button("Restore", self._restore)
+        self.delete_btn = button("Delete", self._delete, "Danger")
+        for b in (self.changes_btn, self.pin_btn, self.restore_btn, self.delete_btn):
+            row.addWidget(b)
+        row.addStretch()
+        self.selection_info = QLabel("", objectName="Muted")
+        row.addWidget(self.selection_info)
+        self.root.addLayout(row)
+        note = QLabel("Each backup only stores mods that changed since the last one, so regular backups take "
+                      "little extra space. Restoring never deletes anything: your current mods folder is renamed to "
+                      "'mods.before-restore-…' first, so you can always go back.", objectName="Muted")
         note.setWordWrap(True)
         self.root.addWidget(note)
+        self._loading = False
 
     def _current(self):
         rows = self.table.selectionModel().selectedRows()
         return self.table.item(rows[0].row(), 0).data(Qt.ItemDataRole.UserRole) if rows else None
+
+    def _selected(self):
+        b = self._current()
+        for w in (self.changes_btn, self.pin_btn, self.restore_btn, self.delete_btn):
+            w.setEnabled(b is not None)
+        if b is None:
+            self.selection_info.setText("")
+            return
+        self.pin_btn.setText("Unmark as working" if b.pinned else "Mark as working")
+        ch = self.win.changes_since(b)
+        self.selection_info.setText("" if ch is None else
+                                    f"Since this backup: {ch.summary()}")
+
+    def _changes(self):
+        b = self._current()
+        if b:
+            self.win.show_changes(b)
+
+    def _pin(self):
+        b = self._current()
+        if b:
+            self.win.mark_working(b, not b.pinned)
 
     def _restore(self):
         b = self._current()
@@ -472,31 +538,77 @@ class BackupsPage(Page):
         if b:
             self.win.delete_backup(b)
 
+    def _auto_changed(self, *_):
+        if self._loading or not self.win.game:
+            return
+        self.win.set_auto_backup(self.every.currentData(), self.on_change.isChecked())
+        self._update_hint()
+
+    def _update_hint(self):
+        every, on_change = self.every.currentData(), self.on_change.isChecked()
+        if every == "off" and not on_change:
+            self.auto_hint.setText("Turn on automatic backups so you always have a recent restore point.")
+        else:
+            parts = []
+            if every != "off":
+                parts.append("once a " + ("day" if every == "daily" else "week"))
+            if on_change:
+                parts.append("whenever ModTender notices your mods changed")
+            self.auto_hint.setText("ModTender backs this game up " + " and ".join(parts)
+                                   + ", while it's open. Backups marked as working are always kept.")
+
     def refresh(self):
+        self._loading = True
         self.table.setSortingEnabled(False)
         self.table.setRowCount(0)
-        if self.win.game is None:
+        game = self.win.game
+        local = bool(game and not game.workshop_only)
+        for w in (self.every, self.on_change, self.rollback, self.auto_hint):
+            w.setVisible(local)
+        if game is None:
             self.subheading.setText("")
+            self._loading = False
             return
-        if self.win.game.workshop_only:
+        if not local:
             self.subheading.setText("This game's mods all come from the Steam Workshop. Steam keeps them safe, "
                                     "so there's nothing to back up: resubscribe to get any of them back.")
-        else:
-            self.subheading.setText(f"{len(self.win.backups)} backups · keeping the newest "
-                                    f"{self.win.settings.keep_backups} · {self.win.settings.backup_root}"
-                                    + (" · Workshop mods aren't included: Steam keeps those."
-                                       if self.win.game.workshop_dir else ""))
+            self._loading = False
+            self._selected()
+            return
+        cfg = self.win.settings.auto_backups.get(game.id, {})
+        i = self.every.findData(cfg.get("every", "off"))
+        self.every.setCurrentIndex(i if i >= 0 else 0)
+        self.on_change.setChecked(bool(cfg.get("on_change", False)))
+        self._update_hint()
+        from ..core.backups import last_working
+        working = last_working(self.win.backups)
+        self.rollback.setEnabled(working is not None)
+        self.rollback.setToolTip(f"Restore the backup from {working.created:%b %d, %H:%M} that you marked as working"
+                                 if working else "Mark a backup as working first")
+        used = self.win.backup_storage()
+        self.subheading.setText(f"{len(self.win.backups)} backup{'s' if len(self.win.backups) != 1 else ''} · "
+                                f"keeping the newest {self.win.settings.keep_backups} plus any marked as working · "
+                                f"{human_size(used)} on disk"
+                                + (" · Workshop mods aren't included: Steam keeps those." if game.workshop_dir else ""))
         for b in self.win.backups:
             r = self.table.rowCount()
             self.table.insertRow(r)
             created = SortItem(b.created.strftime("%Y-%m-%d  %H:%M"), b.created.timestamp())
             created.setData(Qt.ItemDataRole.UserRole, b)
-            items = [created, SortItem(str(b.mod_count), b.mod_count),
-                     SortItem(human_size(b.total_size), b.total_size), SortItem(b.path.name)]
+            kind = SortItem(("★  Working setup · " if b.pinned else "") + (b.note or "Manual")
+                            + ("  (older zip backup)" if b.kind == "zip" else ""))
+            if b.pinned:
+                kind.setForeground(QColor(theme.SUCCESS))
+            items = [created, kind, SortItem(str(b.mod_count), b.mod_count),
+                     SortItem(human_size(b.total_size), b.total_size), SortItem(human_size(b.new_bytes), b.new_bytes)]
             for c, item in enumerate(items):
                 self.table.setItem(r, c, item)
         self.table.setSortingEnabled(True)
         self.table.sortItems(0, Qt.SortOrder.DescendingOrder)
+        if self.win.backups:
+            self.table.selectRow(0)
+        self._loading = False
+        self._selected()
 
 
 # ---------------------------------------------------------------- Settings

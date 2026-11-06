@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.0
+- **Space-saving backups.** Each mod file is stored only once, so a new backup only takes space for mods that changed. Daily backups of a big mod folder cost almost nothing extra. Older backups still work.
+- **Automatic backups** per game (Backups page): every day or every week, and optionally whenever ModTender notices your mods changed.
+- **What changed since?** Pick any backup to see which mods were added, removed, updated, turned on or turned off since then, and restore it from the same window.
+- **Mark as working + Roll back:** mark a backup from when the game ran fine, then return to it with one click if it starts crashing. Working setups are never deleted automatically.
+- The Dashboard shows how many changes you've made since your last backup.
+- Fixed: harmless shortcut files inside mods (like Style Colonies blueprints) were flagged as programs
+- The Workshop page button only shows for games with Workshop mods
+
 ## 0.10.3
 - Opening ModTender while it's already open now reliably brings its window to the front
 - Steam games that only show as "Steam app 123456" get their real name (looked up once from the Steam store)

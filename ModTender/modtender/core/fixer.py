@@ -169,7 +169,7 @@ def fix_issues(game: Game, issues: list[Issue], backup_root: Path | None = None,
         if progress:
             progress(0, "Backing up before fixing…")
         log.info("[%s] Fix all: backing up first", game.id)
-        result.backup = backups.create_backup(game, backup_root, note="Automatic backup before Fix",
+        result.backup = backups.create_backup(game, backup_root, note="Before Fix all",
                                               progress=lambda p, m: progress and progress(p * 0.8, m)).path
     for n, issue in enumerate(todo):
         if progress:

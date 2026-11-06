@@ -17,7 +17,7 @@ from ..core.games import Game, detect_games, make_custom_game_entry
 from ..core.issues import analyze
 from ..core.log import log, log_dir
 from ..core.manager import ModActionError
-from ..core.report import build_report
+from ..core.report import build_report, human_size
 from ..core.scanner import scan_game
 from ..core.settings import load_settings, save_settings
 from . import theme
@@ -66,6 +66,9 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(2500, self._report_finished_update)
         QTimer.singleShot(4000, self._refresh_sources)
         QTimer.singleShot(5000, self._fetch_steam_names)
+        self._auto_timer = QTimer(self)
+        self._auto_timer.timeout.connect(self._auto_backup_tick)
+        self._auto_timer.start(15 * 60 * 1000)
 
     # ------------------------------------------------------------ layout
 
@@ -344,6 +347,8 @@ class MainWindow(QMainWindow):
             self.issues = analyze(scan)
             self.refresh_all()
             self.status(f"Scanned {len(scan.mods)} mods · {len(self.issues)} issues")
+            self._changes_cache = {}
+            QTimer.singleShot(3000, self._auto_backup_tick)
             untitled = [m.workshop_id for m in scan.mods if m.workshop and not m.title]
             if untitled:
                 self._fetch_workshop_titles(scan, untitled)
@@ -694,8 +699,114 @@ class MainWindow(QMainWindow):
 
     def _load_backups(self):
         self.backups = backups.list_backups(self.game, self.settings.backup_root) if self.game else []
+        self._changes_cache = {}
 
-    def create_backup(self):
+    def changes_since(self, backup):
+        """What changed between a backup and the current scan (cached; None before a scan)."""
+        if self.scan is None or backup is None:
+            return None
+        key = (str(backup.path), id(self.scan))
+        cache = getattr(self, "_changes_cache", {})
+        if key not in cache:
+            try:
+                cache[key] = backups.changes_since(backup, self.scan)
+            except Exception as exc:
+                log.warning("Couldn't compare with %s: %s", backup.path.name, exc)
+                cache[key] = None
+            self._changes_cache = cache
+        return cache[key]
+
+    def backup_storage(self) -> int:
+        try:
+            return backups.storage_used(self.game, self.settings.backup_root) if self.game else 0
+        except OSError:
+            return 0
+
+    def show_changes(self, backup):
+        ch = self.changes_since(backup)
+        if ch is None:
+            QMessageBox.information(self, "What changed", "Scan the game first.")
+            return
+        if not ch.count:
+            QMessageBox.information(self, "What changed",
+                                    f"Nothing changed since the backup from {backup.created:%b %d, %H:%M}.")
+            return
+        lines = []
+        for label, items in (("Added", ch.added), ("Removed", ch.removed), ("Updated", ch.updated),
+                             ("Turned on", ch.enabled), ("Turned off", ch.disabled)):
+            if items:
+                lines.append(f"{label} ({len(items)}):\n" + "\n".join(f"   {n}" for n in items[:25])
+                             + (f"\n   …and {len(items) - 25} more" if len(items) > 25 else ""))
+        box = QMessageBox(self)
+        box.setWindowTitle("What changed")
+        box.setText(f"Since the backup from {backup.created:%b %d, %H:%M}: {ch.summary()}.")
+        box.setInformativeText("If the game started crashing after these changes, restore this backup "
+                               "to put everything back.")
+        box.setDetailedText("\n\n".join(lines))
+        restore = box.addButton("Restore this backup", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("Close", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        if box.clickedButton() is restore:
+            self.restore_backup(backup)
+
+    def mark_working(self, backup, pinned: bool):
+        backups.set_pinned(self.game, self.settings.backup_root, backup, pinned)
+        self.status("Marked as a working setup. It won't be deleted automatically." if pinned
+                    else "No longer marked as working.")
+        self._load_backups()
+        self.refresh_all()
+
+    def roll_back(self):
+        working = backups.last_working(self.backups)
+        if working is None:
+            QMessageBox.information(self, "Roll back", "Mark a backup as working first: pick a backup from a time "
+                                    "the game ran fine and click Mark as working.")
+            return
+        self.restore_backup(working)
+
+    def set_auto_backup(self, every: str, on_change: bool):
+        if not self.game:
+            return
+        if every == "off" and not on_change:
+            self.settings.auto_backups.pop(self.game.id, None)
+        else:
+            self.settings.auto_backups[self.game.id] = {"every": every, "on_change": on_change}
+        self.save_settings()
+        QTimer.singleShot(1000, self._auto_backup_tick)
+
+    def _auto_backup_tick(self):
+        """Run at most one due automatic backup. Called on a timer and after scans."""
+        if self._busy:
+            return
+        root, keep = self.settings.backup_root, self.settings.keep_backups
+        # The current game first: it may also need an "after a change" backup.
+        if self.game and self.scan is not None and self.game.id in self.settings.auto_backups:
+            cfg = self.settings.auto_backups[self.game.id]
+            note = None
+            if backups.is_due(self.backups, cfg.get("every", "off")):
+                note = "Scheduled"
+            elif cfg.get("on_change"):
+                latest = self.backups[0] if self.backups else None
+                ch = self.changes_since(latest) if latest else None
+                if latest is None or (ch is not None and ch.count):
+                    note = "Mods changed"
+            if note and not self.game.workshop_only:
+                return self.create_backup(note=note, quiet=True)
+        for g in self.games:
+            cfg = self.settings.auto_backups.get(g.id)
+            if not cfg or g is self.game or g.workshop_only or not g.mods_dir.is_dir():
+                continue
+            if backups.is_due(backups.list_backups(g, root), cfg.get("every", "off")):
+                def work(progress=None, g=g):
+                    b = backups.create_backup(g, root, note="Scheduled", progress=progress)
+                    backups.prune_backups(g, root, keep)
+                    return b
+                return self._run(f"Automatic backup of {g.name}…", work,
+                                 on_done=lambda b, g=g: self.status(f"Automatic backup of {g.name} saved."),
+                                 on_fail=lambda m, g=g: self.status(f"Automatic backup of {g.name} failed: "
+                                                                    + m.split(chr(10))[0]))
+
+    def create_backup(self, note: str = "Manual", quiet: bool = False):
         if not self.game:
             return
         if self.game.workshop_only:
@@ -705,40 +816,55 @@ class MainWindow(QMainWindow):
         game, root, keep = self.game, self.settings.backup_root, self.settings.keep_backups
 
         def work(progress=None):
-            b = backups.create_backup(game, root, progress=progress)
+            b = backups.create_backup(game, root, note=note, progress=progress)
             backups.prune_backups(game, root, keep)
             return b
 
         def done(b):
-            self._load_backups()
-            self.refresh_all()
-            self.status(f"Backup saved: {b.path.name}")
+            if self.game is game:
+                self._load_backups()
+                self.refresh_all()
+            self.status(f"{'Automatic backup' if quiet else 'Backup'} saved: {human_size(b.new_bytes)} of new space used.")
 
-        self._run(f"Backing up {game.name}…", work, on_done=done)
+        def fail(message):
+            first = message.split("\n\n")[0]
+            self.status(f"Backup failed: {first}")
+            if not quiet:
+                QMessageBox.warning(self, "Back up", first)
+
+        self._run(f"{'Automatic backup' if quiet else 'Backing up'}: {game.name}…", work, on_done=done, on_fail=fail)
 
     def restore_backup(self, backup):
+        ch = self.changes_since(backup)
         answer = QMessageBox.question(
             self, "Restore backup",
             f"Restore the backup from {backup.created:%Y-%m-%d %H:%M}?\n\n"
+            + (f"This undoes: {ch.summary()}.\n\n" if ch and ch.count else "")
+            + 
             "Your current mods folder won't be deleted. It's renamed to 'mods.before-restore-…' "
             "so you can go back to it.\n\nClose the game before restoring.",
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
+        root = self.settings.backup_root
 
         def done(kept):
             self.status(f"Restored. Previous mods kept in {kept}")
             self.scan = None
             self.start_scan()
 
-        self._run("Restoring backup…", backups.restore_backup, self.game, backup, on_done=done)
+        def fail(message):
+            QMessageBox.warning(self, "Restore", message.split("\n\n")[0])
+
+        self._run("Restoring backup…", lambda progress=None: backups.restore_backup(self.game, backup, progress, root),
+                  on_done=done, on_fail=fail)
 
     def delete_backup(self, backup):
         answer = QMessageBox.question(self, "Delete backup",
                                       f"Permanently delete the backup from {backup.created:%Y-%m-%d %H:%M}?")
         if answer == QMessageBox.StandardButton.Yes:
             try:
-                backup.path.unlink()
+                backups.delete_backup(self.game, self.settings.backup_root, backup)
             except OSError as exc:
                 QMessageBox.warning(self, APP_NAME, f"Couldn't delete it: {exc}")
             self._load_backups()

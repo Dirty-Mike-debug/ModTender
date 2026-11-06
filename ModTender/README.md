@@ -1,4 +1,4 @@
-# ModTender 0.10
+# ModTender 0.11
 
 A mod manager and safety tool for Windows. It finds your games, checks every mod for problems, explains how to fix them, and keeps backups you can restore at any time.
 
@@ -32,7 +32,7 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
   - files the game can't use (`.rar`, readmes, unfinished downloads)
 - **Fix / Fix all**: most issues can be repaired with one click. Fix all applies every safe fix in the right order and can back up your mods first. Nothing is ever deleted: removed files go to ModTender's disabled or quarantine folder (Backups → Quarantine).
 - **Missing mods**: flags mods that need another mod you don't have installed or have disabled (Farming Simulator and Stardew Valley).
-- **Backups**: a one-click snapshot of the whole mods folder. Restoring never deletes anything: your current folder is renamed to `mods.before-restore-…` first. The oldest backups are cleaned up automatically (10 per game by default).
+- **Backups**: snapshots of the whole mods folder where each mod file is stored only once, so repeat backups take little space. Automatic backups (daily, weekly, and/or when mods change), "What changed since?" for any backup, and "Mark as working" + "Roll back to working setup". Restoring never deletes anything: your current folder is renamed to `mods.before-restore-…` first. The oldest backups are cleaned up automatically (10 per game by default, working setups are always kept).
 - **Appearance**: four built-in themes (Midnight, Graphite, Nord, Daylight), eight one-click accent colors, and a color picker for the background, sidebar, cards, borders and text. Settings → Appearance.
 - **Updates**: *Check for updates* (bottom of the sidebar, or Settings → Updates) finds new versions on GitHub Releases. *Update now* downloads and installs it, then restarts ModTender. The previous version is kept in `.modtender-update\previous` and restored automatically if an install fails.
 - **Users**: each person on the PC gets their own settings, theme and games, with an optional PIN.
@@ -83,6 +83,6 @@ modtender/ui/           PySide6 interface (theme, pages, main window)
 1. ~~Professional UI / dashboard~~ (this version)
 2. ~~Auto game/mod-folder detection~~ (first pass done; more games to add)
 3. Deeper conflict detection: ~~dependency checks~~, ~~Witcher 3 script conflicts~~; next: other games' file overrides
-4. Scheduled backups and automatic recovery
+4. ~~Scheduled backups and recovery~~ (0.11)
 5. ~~Local users~~ (0.9), then online accounts + Free vs Pro split
 6. ~~Windows installer~~ (done in 0.6), code signing, then Steam

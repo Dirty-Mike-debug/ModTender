@@ -214,7 +214,8 @@ def _inspect_archive(mod: Mod, deep: bool) -> None:
                 if bad:
                     mod.corrupt = f"Damaged file inside the archive: {bad}"
             mod.root_files = sorted({n.split("/", 1)[0] for n in names if n})
-            mod.risky_files = [n for n in names if Path(n).suffix.lower() in RISKY_EXTS][:20]
+            # Inside an archive a shortcut (.lnk) can't run, so only real programs and scripts count.
+            mod.risky_files = [n for n in names if Path(n).suffix.lower() in RISKY_EXTS - {".lnk"}][:20]
             mod.inner_zips = [n for n in names if n.lower().endswith(".zip")][:200]
             lower = {n.lower(): n for n in names}
             if "moddesc.xml" not in lower and len(mod.root_files) == 1:
