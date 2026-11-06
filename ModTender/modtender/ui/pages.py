@@ -528,6 +528,9 @@ class SettingsPage(Page):
         self._build_games()
         self.body.addWidget(divider())
         self._build_updates()
+        if self.win.user is not None:
+            self.body.addWidget(divider())
+            self._build_users()
         self.body.addStretch()
 
     # --- sections
@@ -641,6 +644,24 @@ class SettingsPage(Page):
         form.addRow("Release page", self.repo)
         self.body.addLayout(form)
 
+    def _build_users(self):
+        self._section("Users", "Everyone on this PC can have their own ModTender settings, theme and games. "
+                      "A PIN keeps others from opening your profile by accident (it isn't strong security).")
+        self.me = QLabel("")
+        self.body.addWidget(self.me)
+        row = QHBoxLayout()
+        row.addWidget(button("Change name", self.win.edit_name))
+        self.pin_btn = button("Set PIN", self.win.edit_pin)
+        row.addWidget(self.pin_btn)
+        row.addWidget(button("Add user", self.win.add_user, icon_name="plus"))
+        row.addWidget(button("Switch user", self.win.switch_user))
+        row.addWidget(button("Delete my user", self.win.delete_me, "Danger"))
+        row.addStretch()
+        self.body.addLayout(row)
+        self.always_signin = QCheckBox("Always show the sign-in screen when ModTender starts")
+        self.always_signin.toggled.connect(lambda v: None if self._loading else self.win.set_show_signin(v))
+        self.body.addWidget(self.always_signin)
+
     # --- behaviour
 
     def refresh(self):
@@ -652,6 +673,13 @@ class SettingsPage(Page):
         self.deep.setChecked(s.deep_check)
         self.auto_update.setChecked(s.check_updates_on_start)
         self.repo.setText(s.update_repo)
+        if self.win.user is not None:
+            from ..core import users
+            n = len(users.list_users())
+            self.me.setText(f"Signed in as {self.win.user.name}" + (" (PIN set)" if self.win.user.has_pin else "")
+                            + f" · {n} user{'s' if n != 1 else ''} on this PC")
+            self.pin_btn.setText("Change PIN" if self.win.user.has_pin else "Set PIN")
+            self.always_signin.setChecked(users.show_signin())
         self.custom.clear()
         for g in s.custom_games:
             item = QListWidgetItem(f"{g['name']}  —  {g['path']}")

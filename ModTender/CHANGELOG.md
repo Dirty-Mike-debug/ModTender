@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0
+- **User accounts on this PC.** Everyone can have their own ModTender settings, theme, games and backup folder. Pick who's using ModTender on the new sign-in screen, and switch users from the bottom of the sidebar.
+  - Optional PIN per user (after 5 wrong tries the sign-in waits 30 seconds)
+  - Settings → Users: change your name, set or remove your PIN, add users, delete your user
+  - With a single user and no PIN, ModTender opens straight away as before. Tick "Always show the sign-in screen" to change that.
+  - Your existing settings become your first user, named after your Windows account.
+
 ## 0.8.0
 - **Script conflict detection for The Witcher 3.** When two mods change the same script file, only one of them works. ModTender now lists which mods clash, which files, and which mod's version is currently used, and points you to Script Merger.
 - **Out-of-date merge warning:** if you update a script mod after running Script Merger, ModTender tells you to merge again.

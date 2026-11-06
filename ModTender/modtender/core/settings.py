@@ -28,7 +28,19 @@ class Settings:
         return Path(self.backup_dir) if self.backup_dir else paths.default_backup_dir()
 
 
+_USER = ""  # set by use_user(); empty = the old shared settings file
+
+
+def use_user(user_id: str) -> None:
+    """Load and save this user's settings from now on."""
+    global _USER
+    _USER = user_id
+
+
 def _file():
+    if _USER:
+        from .users import user_dir
+        return user_dir(_USER) / "settings.json"
     return paths.data_dir() / "settings.json"
 
 

@@ -26,7 +26,11 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setStyle("Fusion")
-    window = MainWindow()
+
+    user = sign_in(app, force=False)
+    if user is None:
+        return 0
+    window = MainWindow(user)
     window.show()
     if "--self-test" in sys.argv:
         # Used by the release build: open the full window, then report success and quit.
@@ -41,7 +45,40 @@ def main() -> int:
             app.quit()
 
         QTimer.singleShot(4000, finish)
-    return app.exec()
+        return app.exec()
+
+    while True:
+        code = app.exec()
+        if not window.switch_requested:
+            return code
+        user = sign_in(app, force=True)  # "Switch user": show the sign-in screen again
+        if user is None:
+            return code
+        window = MainWindow(user)
+        window.show()
+
+
+def sign_in(app, force: bool):
+    """Pick the user for this session. Returns None if the sign-in screen was closed."""
+    from PySide6.QtWidgets import QDialog
+
+    from modtender.core import settings, users
+    from modtender.ui import theme
+    from modtender.ui.signin import SignInDialog
+
+    first = users.ensure_first_user()
+    settings.use_user(first.id)  # show the sign-in screen in the last user's theme
+    s = settings.load_settings()
+    theme.apply(app, s.theme_preset, s.theme_overrides)
+    user = first
+    if force or users.needs_signin():
+        dlg = SignInDialog()
+        if dlg.exec() != QDialog.DialogCode.Accepted or dlg.user is None:
+            return None
+        user = dlg.user
+    users.set_last_user(user)
+    settings.use_user(user.id)
+    return user
 
 
 if __name__ == "__main__":

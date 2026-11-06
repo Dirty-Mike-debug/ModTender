@@ -29,14 +29,17 @@ NAV = [("dashboard", "Dashboard"), ("mods", "Mods"), ("issues", "Issues"),
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, user=None):
         super().__init__()
+        self.user = user
+        self.switch_requested = False
         self.setWindowTitle(APP_NAME)
         self.resize(1280, 800)
         self.setMinimumSize(1000, 640)
 
         self.settings = load_settings()
-        log.info("ModTender %s started (Python %s)", __version__, sys.version.split()[0])
+        log.info("ModTender %s started (Python %s), user: %s", __version__, sys.version.split()[0],
+                 user.name if user else "-")
         self.games: list[Game] = []
         self.game: Game | None = None
         self.scan = None
@@ -138,6 +141,15 @@ class MainWindow(QMainWindow):
             lay.addWidget(b)
         lay.addStretch()
 
+        if self.user is not None:
+            from .signin import avatar
+            who = QPushButton(f"  {self.user.name}", objectName="Ghost")
+            who.setIcon(QIcon(avatar(self.user, 12)))
+            who.setIconSize(QSize(22, 22))
+            who.setToolTip("Switch user")
+            who.setCursor(Qt.CursorShape.PointingHandCursor)
+            who.clicked.connect(self.switch_user)
+            lay.addWidget(who)
         upd = QPushButton("Check for updates", objectName="Ghost")
         upd.setIcon(icon("update", theme.MUTED))
         upd.setIconSize(QSize(14, 14))
@@ -455,6 +467,52 @@ class MainWindow(QMainWindow):
     def open_url(self, url: str):
         QDesktopServices.openUrl(QUrl(url))
 
+    # ------------------------------------------------------------ users
+
+    def switch_user(self):
+        if self._busy:
+            self.status("Please wait for the current task to finish.")
+            return
+        self.save_settings()
+        self.switch_requested = True
+        self.close()
+
+    def edit_name(self):
+        from ..core import users
+        name, ok = QInputDialog.getText(self, "Your name", "Name:", text=self.user.name)
+        if ok and name.strip():
+            self.user.name = name.strip()[:40]
+            users.update_user(self.user)
+            self.apply_theme()  # rebuild so the sidebar shows the new name
+
+    def edit_pin(self):
+        from .signin import PinDialog
+        if PinDialog(self.user, self).exec():
+            self.status("PIN saved." if self.user.has_pin else "PIN removed.")
+            self.pages["settings"].refresh()
+
+    def add_user(self):
+        from .signin import NewUserDialog
+        dlg = NewUserDialog(self)
+        if dlg.exec() and dlg.user:
+            QMessageBox.information(self, "Add user", f"Added {dlg.user.name}. Use Switch user to sign in as them.")
+            self.pages["settings"].refresh()
+
+    def delete_me(self):
+        from ..core import users
+        from .signin import confirm_delete
+        if len(users.list_users()) < 2:
+            QMessageBox.information(self, "Delete user", "You're the only user, so this user can't be deleted.")
+            return
+        if confirm_delete(self, self.user):
+            users.delete_user(self.user)
+            self.switch_requested = True
+            self.close()
+
+    def set_show_signin(self, value: bool):
+        from ..core import users
+        users.set_show_signin(value)
+
     def open_log_folder(self):
         reveal_in_explorer(log_dir())
 
@@ -573,7 +631,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(text)
 
     def closeEvent(self, event):
-        if self._busy:
+        if self._busy and not self.switch_requested:
             answer = QMessageBox.question(self, APP_NAME, "A task is still running. Quit anyway?")
             if answer != QMessageBox.StandardButton.Yes:
                 event.ignore()

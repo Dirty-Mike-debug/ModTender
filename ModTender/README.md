@@ -1,4 +1,4 @@
-# ModTender 0.8
+# ModTender 0.9
 
 A mod manager and safety tool for Windows. It finds your games, checks every mod for problems, explains how to fix them, and keeps backups you can restore at any time.
 
@@ -35,6 +35,7 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
 - **Backups**: a one-click snapshot of the whole mods folder. Restoring never deletes anything: your current folder is renamed to `mods.before-restore-…` first. The oldest backups are cleaned up automatically (10 per game by default).
 - **Appearance**: four built-in themes (Midnight, Graphite, Nord, Daylight), eight one-click accent colors, and a color picker for the background, sidebar, cards, borders and text. Settings → Appearance.
 - **Updates**: *Check for updates* (bottom of the sidebar, or Settings → Updates) finds new versions on GitHub Releases. *Update now* downloads and installs it, then restarts ModTender. The previous version is kept in `.modtender-update\previous` and restored automatically if an install fails.
+- **Users**: each person on the PC gets their own settings, theme and games, with an optional PIN. Online accounts are planned alongside Free vs Pro.
 - **Export report**: a plain-text summary to paste when asking for help on a forum or Discord.
 
 ## Supported games out of the box
@@ -47,7 +48,9 @@ To add a game permanently, add a `GameDef` entry to `modtender/core/games.py`.
 
 | What | Where |
 |---|---|
-| Settings, scan cache | `%LOCALAPPDATA%\ModTender\` |
+| Users | `%LOCALAPPDATA%\ModTender\users.json` (PINs stored as salted hashes) |
+| Each user's settings | `%LOCALAPPDATA%\ModTender\users\<user>\settings.json` |
+| Scan cache, logs | `%LOCALAPPDATA%\ModTender\` |
 | Disabled mods | `%LOCALAPPDATA%\ModTender\disabled\<game>\` |
 | Files moved by Fix | `%LOCALAPPDATA%\ModTender\quarantine\<game>\` |
 | Backups (default, can be changed in Settings) | `%LOCALAPPDATA%\ModTender\backups\<game>\` |
@@ -66,7 +69,8 @@ modtender/core/         no UI code; can be tested on its own
   backups.py            create / list / restore / prune
   manager.py            enable / disable
   report.py             text report
-  settings.py           JSON settings
+  settings.py           JSON settings (per user)
+  users.py              local users and PINs
   sources.py            'Get mods' database (bundled + refreshed from GitHub)
   updates.py            GitHub Releases update check
   self_update.py        in-app download + install
@@ -79,5 +83,5 @@ modtender/ui/           PySide6 interface (theme, pages, main window)
 2. ~~Auto game/mod-folder detection~~ (first pass done; more games to add)
 3. Deeper conflict detection: ~~dependency checks~~, ~~Witcher 3 script conflicts~~; next: other games' file overrides
 4. Scheduled backups and automatic recovery
-5. Free vs Pro split
+5. ~~Local users~~ (0.9), then online accounts + Free vs Pro split
 6. ~~Windows installer~~ (done in 0.6), code signing, then Steam
