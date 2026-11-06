@@ -384,6 +384,8 @@ def scan_game(game: Game, deep: bool = False, progress=None) -> ScanResult:
             _inspect_folder(mod)
         else:
             ext = entry.suffix.lower()
+            if ext == ".disabled" and Path(entry.stem).suffix.lower() in exts:
+                continue  # turned off by a launcher like CurseForge (mod.jar.disabled): leave it alone
             if (exts and ext not in exts) or (gdef.folders_only and origin == "local"):
                 if enabled and origin == "local" and not (protected and protected.match(entry.name)):
                     strays.append(entry)

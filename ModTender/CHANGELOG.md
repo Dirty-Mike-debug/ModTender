@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.14.3
+- Fixed: mods turned off by CurseForge (files ending in .jar.disabled) were reported as files the game can't use, and Fix all moved them out of the mods folder. They're now left alone.
+
 ## 0.14.2
 - Fixed: Forge/NeoForge mods that list an older release of the same Minecraft line (for example "1.21 only" in a 1.21.1 pack) were wrongly reported as the wrong version. They load fine, so they're no longer flagged. Mods built for a different line (like 1.20 in a 1.21 pack) are still caught.
 
