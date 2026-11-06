@@ -24,6 +24,8 @@ def _move(src: Path, dest_dir: Path) -> Path:
 
 
 def disable_mod(game: Game, mod: Mod) -> Path:
+    if mod.workshop:
+        raise ModActionError(f"'{mod.display_name}' comes from the Steam Workshop. Unsubscribe on Steam to remove it.")
     if mod.protected:
         raise ModActionError(f"'{mod.name}' is a base game file and can't be disabled.")
     if not mod.enabled:

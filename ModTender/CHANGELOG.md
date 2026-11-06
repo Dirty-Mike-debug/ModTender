@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0
+- **Steam Workshop mods are scanned too.** RimWorld and Euro/American Truck Simulator show their Workshop mods next to local ones, and every other Steam game you have Workshop mods for gets its own entry in the game list.
+  - Workshop items show their real names (RimWorld About.xml, SCS manifest.sii) and a Workshop page button
+  - Catches empty or broken Workshop downloads, Workshop items with programs inside, and a local copy of a mod you're also subscribed to (Fix keeps the Workshop one)
+  - Missing RimWorld dependencies link straight to a Workshop search
+  - ModTender never moves Workshop files, since Steam would just re-download them
+- **New Get mods page:** trusted places to download mods for each supported game, which ones are official, the mod loaders you need first, game-specific tips and safety advice. The list updates itself from GitHub, without needing a new ModTender version.
+
 ## 0.6.0
 - **ModTender is now a real Windows app.** Install it with **ModTender-Setup.exe**: no Python needed, Start menu and desktop shortcuts, and an uninstaller in Windows Settings → Apps. It installs just for you, so no administrator prompt.
 - **New logo:** a cog with an M in the middle. The sidebar version follows your accent color.

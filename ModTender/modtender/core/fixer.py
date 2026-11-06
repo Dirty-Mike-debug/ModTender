@@ -133,7 +133,9 @@ def apply_fix(game: Game, issue: Issue) -> list[str]:
         _quarantine(game, _in_mods(game, p["mod"]))
         return [f"Moved {p['mod']} to quarantine"]
     if a in ("dedupe", "keep_newest"):
-        _in_mods(game, p["keep"])  # never remove the others if the one we keep has gone
+        # never remove the others if the one we keep has gone
+        if not (Path(p["keep_path"]).exists() if p.get("keep_path") else (game.mods_dir / p["keep"]).exists()):
+            raise FixError(f"'{p['keep']}' is no longer there, so the other copies were left alone")
         return [_disable(game, n) for n in p["drop"] if (game.mods_dir / n).exists()]
     if a == "disable":
         return [_disable(game, n) for n in p["mods"]]
@@ -153,9 +155,9 @@ def apply_fix(game: Game, issue: Issue) -> list[str]:
                 _quarantine(game, f)
                 moved.append(n)
         return [f"Moved {len(moved)} file(s) to quarantine"] if moved else []
-    if a == "search":
+    if a in ("search", "open_url"):
         webbrowser.open(p["url"])
-        return ["Opened a search page in your browser"]
+        return ["Opened the page in your browser"]
     raise FixError("there's no automatic fix for this issue")
 
 
@@ -163,7 +165,7 @@ def fix_issues(game: Game, issues: list[Issue], backup_root: Path | None = None,
     """Apply several fixes in a safe order. Optionally back up the mods folder first."""
     result = FixResult()
     todo = sorted((i for i in issues if i.fixable), key=lambda i: ACTION_ORDER.get(i.action, 99))
-    if backup_root is not None and game.mods_dir.is_dir():
+    if backup_root is not None and game.mods_dir.is_dir() and not game.workshop_only:
         if progress:
             progress(0, "Backing up before fixing…")
         log.info("[%s] Fix all: backing up first", game.id)

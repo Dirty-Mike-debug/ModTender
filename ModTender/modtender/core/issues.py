@@ -26,7 +26,11 @@ STRAY_HINTS = {
 # Order in which "Fix all" applies actions, so earlier fixes don't trip up later ones
 # (e.g. remove an extra copy before renaming anything).
 ACTION_ORDER = {"mkdir": 0, "quarantine_mod": 1, "dedupe": 2, "keep_newest": 3, "unpack": 4,
-                "rezip": 5, "rename": 6, "quarantine_files": 7, "enable": 8, "disable": 9, "search": 10}
+                "rezip": 5, "rename": 6, "quarantine_files": 7, "enable": 8, "disable": 9, "search": 10,
+                "open_url": 11}
+
+WORKSHOP_FIX = ("Steam manages Workshop mods, so ModTender doesn't move them. Open the item on Steam and "
+                "unsubscribe to remove it, or unsubscribe and subscribe again to re-download it.")
 
 # Search pages for mods ModTender can't find locally.
 SEARCH_URLS = {
@@ -108,6 +112,13 @@ def analyze(scan: ScanResult) -> list[Issue]:
         ))
 
     for m in scan.mods:
+        if m.corrupt and m.workshop:
+            issues.append(Issue(
+                CRITICAL, "Damaged or empty Workshop item", m.corrupt, WORKSHOP_FIX, [m.name],
+                action="open_url", params={"url": m.workshop_url}, safe=False,
+                action_label="Open this item's Steam Workshop page",
+            ))
+            continue
         if m.corrupt:
             issues.append(Issue(
                 CRITICAL, "Damaged or unreadable mod", m.corrupt,
@@ -115,7 +126,17 @@ def analyze(scan: ScanResult) -> list[Issue]:
                 [m.name], action="quarantine_mod", params={"mod": m.name},
                 action_label="Move it out of the mods folder (into ModTender's quarantine folder)",
             ))
-        if m.risky_files and not m.protected and m.enabled:
+        if m.risky_files and not m.protected and m.enabled and m.workshop:
+            listing = "\n".join(f"  - {f}" for f in m.risky_files[:10])
+            issues.append(Issue(
+                WARNING, "Workshop item contains programs or scripts",
+                f"'{m.display_name}' includes files that can run code on your PC:\n{listing}",
+                "Game mods rarely need these. Check the item's Workshop page and comments, and unsubscribe "
+                "if you don't trust it. This doesn't mean it's malware.",
+                [m.name], action="open_url", params={"url": m.workshop_url}, safe=False,
+                action_label="Open this item's Steam Workshop page",
+            ))
+        elif m.risky_files and not m.protected and m.enabled:
             listing = "\n".join(f"  - {f}" for f in m.risky_files[:10])
             issues.append(Issue(
                 WARNING, "Contains programs or scripts",
@@ -137,14 +158,19 @@ def analyze(scan: ScanResult) -> list[Issue]:
     for group in by_hash.values():
         if len(group) > 1:
             keep = _pick_keeper(group, name_rule)
-            drop = [m.name for m in group if m is not keep]
+            ws = [m for m in group if m.workshop]
+            if ws:
+                keep = ws[0]  # Steam would re-download a removed Workshop item, so keep that one
+            drop = [m.name for m in group if m is not keep and not m.workshop]
+            if not drop:
+                continue  # identical Workshop items only: nothing ModTender can or should change
             extra_copies.update(drop)
             dup_names.update(m.name for m in group)
             issues.append(Issue(
                 WARNING, "Same mod installed more than once",
                 "These files are identical:\n" + "\n".join(f"  - {m.name}" for m in group),
                 "Keep one and disable the rest. Duplicates can make the game load a mod twice or pick the wrong copy.",
-                [m.name for m in group], action="dedupe", params={"keep": keep.name, "drop": drop},
+                [m.name for m in group], action="dedupe", params={"keep": keep.name, "keep_path": str(keep.path), "drop": drop},
                 action_label=f"Keep {keep.name} and disable the other {len(drop)} cop{'y' if len(drop) == 1 else 'ies'}",
             ))
 
@@ -160,27 +186,45 @@ def analyze(scan: ScanResult) -> list[Issue]:
         if len(group) < 2:
             continue
         newest = max(group, key=lambda m: (version_key(m.version), m.mtime))
+        ws = [m for m in group if m.workshop]
+        if ws:
+            # A local copy alongside the Workshop version: keep the Workshop one (Steam keeps it updated).
+            newest = max(ws, key=lambda m: (version_key(m.version), m.mtime))
         # Matching by the id inside the mod is reliable. Matching by file name is a guess, so outside
         # Farming Simulator (where file names are the mod's identity) it's left out of Fix all.
         by_id = all(m.mod_id for m in group)
         trusted = by_id or bool(gdef.name_rule)
-        drop = [m.name for m in group if m is not newest]
-        lines = [f"  - {m.name}" + (f"  (version {m.version})" if m.version else "") for m in group]
+        drop = [m.name for m in group if m is not newest and not m.workshop]
+        label = lambda m: (f"{m.display_name} (Steam Workshop)" if m.workshop else m.name)
+        lines = [f"  - {label(m)}" + (f"  (version {m.version})" if m.version else "") for m in group]
+        if not drop:
+            issues.append(Issue(
+                WARNING, "Subscribed to the same mod twice on the Workshop",
+                "These Workshop items look like the same mod:\n" + "\n".join(lines),
+                "Unsubscribe from the one you don't want on Steam. Two copies of one mod usually conflict.",
+                [m.name for m in group], action="open_url", params={"url": group[-1].workshop_url}, safe=False,
+                action_label="Open one of them on the Steam Workshop",
+            ))
+            continue
+        extra_ws = ("\n\nYou're also subscribed to more than one Workshop copy. Unsubscribe from the extra one on Steam."
+                    if len(ws) > 1 else "")
         issues.append(Issue(
             WARNING, "Several versions of the same mod",
-            "These look like copies of one mod:\n" + "\n".join(lines),
-            "Keep the newest version and disable the others. Mixed versions are a classic cause of errors.",
-            [m.name for m in group], action="keep_newest", params={"keep": newest.name, "drop": drop},
+            "These look like copies of one mod:\n" + "\n".join(lines) + extra_ws,
+            ("Keep the Steam Workshop version (Steam keeps it updated) and disable the local copies."
+             if ws else "Keep the newest version and disable the others.") + " Mixed versions are a classic cause of errors.",
+            [m.name for m in group], action="keep_newest",
+            params={"keep": newest.name, "keep_path": str(newest.path), "drop": drop},
             safe=trusted,
-            action_label=f"Keep {newest.name}" + (f" (version {newest.version})" if newest.version else " (newest)")
-                         + " and disable the others",
+            action_label=f"Keep {label(newest)}" + (f" (version {newest.version})" if newest.version else " (newest)")
+                         + " and disable the other copies",
         ))
 
     # Farming Simulator style checks
     if name_rule:
         taken = {m.name.lower() for m in scan.mods}
         for m in enabled:
-            if m.name in extra_copies or name_rule.match(m.name):
+            if m.workshop or m.name in extra_copies or name_rule.match(m.name):
                 continue
             new = fs_safe_name(m.name)
             n = 2
@@ -198,7 +242,7 @@ def analyze(scan: ScanResult) -> list[Issue]:
     if gdef.required_root_file:
         need = gdef.required_root_file.lower()
         for m in enabled:
-            if m.kind not in ("archive", "folder") or m.corrupt or need in {f.lower() for f in m.root_files}:
+            if m.workshop or m.kind not in ("archive", "folder") or m.corrupt or need in {f.lower() for f in m.root_files}:
                 continue
             nested = [f.rsplit("/", 1)[-1] for f in m.inner_zips]
             if m.nested_root and m.kind == "archive":
@@ -266,8 +310,8 @@ def _dependency_issues(scan: ScanResult, extra_copies: set[str]) -> list[Issue]:
         if not m.enabled or m.corrupt:
             continue
         for dep in m.dependencies:
-            if dep.lower().startswith("pdlc_"):
-                continue  # official DLC, not a mod file
+            if dep.lower().startswith(("pdlc_", "ludeon.rimworld")):
+                continue  # official DLC / the base game, not a mod
             found = by_id.get(dep.lower()) or by_fs_name.get(dep.lower())
             if found is None:
                 missing[dep].append(m.name)
@@ -276,8 +320,10 @@ def _dependency_issues(scan: ScanResult, extra_copies: set[str]) -> list[Issue]:
 
     issues = []
     search = SEARCH_URLS.get(gdef.id)
+    if not search and game.steam_appid and game.workshop_dir:
+        search = f"https://steamcommunity.com/workshop/browse/?appid={game.steam_appid}&searchtext={{q}}"
     for dep, needed_by in sorted(missing.items()):
-        url = search.format(q=urllib.parse.quote(dep.replace("FS25_", "").replace("FS22_", ""))) if search else ""
+        url = search.format(q=urllib.parse.quote(dep.replace("FS25_", "").replace("FS22_", "").split(".")[-1])) if search else ""
         issues.append(Issue(
             CRITICAL, "Missing required mod",
             f"'{dep}' isn't installed, but these mods need it:\n" + "\n".join(f"  - {n}" for n in needed_by),
@@ -287,6 +333,8 @@ def _dependency_issues(scan: ScanResult, extra_copies: set[str]) -> list[Issue]:
             action_label=f"Search online for {dep}" if url else "",
         ))
     for dep, (mod, needed_by) in sorted(disabled.items()):
+        if mod.workshop:
+            continue
         issues.append(Issue(
             CRITICAL, "Required mod is disabled",
             f"'{mod.name}' is disabled, but these mods need it:\n" + "\n".join(f"  - {n}" for n in needed_by),

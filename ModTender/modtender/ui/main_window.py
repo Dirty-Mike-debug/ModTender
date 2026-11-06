@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import APP_NAME, UPDATE_REPO, __version__
-from ..core import backups, fixer, manager, paths, self_update, updates
+from ..core import backups, fixer, manager, paths, self_update, sources, updates
 from ..core.games import Game, detect_games, make_custom_game_entry
 from ..core.issues import analyze
 from ..core.log import log, log_dir
@@ -21,11 +21,11 @@ from ..core.report import build_report
 from ..core.scanner import scan_game
 from ..core.settings import load_settings, save_settings
 from . import theme
-from .pages import BackupsPage, DashboardPage, IssuesPage, ModsPage, SettingsPage
+from .pages import BackupsPage, DashboardPage, IssuesPage, ModsPage, SettingsPage, SourcesPage
 from .widgets import Task, app_icon, icon, logo_pixmap, reveal_in_explorer
 
 NAV = [("dashboard", "Dashboard"), ("mods", "Mods"), ("issues", "Issues"),
-       ("backups", "Backups"), ("settings", "Settings")]
+       ("backups", "Backups"), ("sources", "Get mods"), ("settings", "Settings")]
 
 
 class MainWindow(QMainWindow):
@@ -45,6 +45,7 @@ class MainWindow(QMainWindow):
         self._tasks: list[Task] = []
         self._busy = False
         self.current_page = "dashboard"
+        self.mod_sources = sources.load_sources()
 
         self.progress = QProgressBar()
         self.progress.setFixedWidth(200)
@@ -58,6 +59,7 @@ class MainWindow(QMainWindow):
         if self.settings.check_updates_on_start and self._update_repo():
             QTimer.singleShot(1500, lambda: self.check_for_updates(quiet=True))
         QTimer.singleShot(2500, self._report_finished_update)
+        QTimer.singleShot(4000, self._refresh_sources)
 
     # ------------------------------------------------------------ layout
 
@@ -72,7 +74,7 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.pages = {
             "dashboard": DashboardPage(self), "mods": ModsPage(self), "issues": IssuesPage(self),
-            "backups": BackupsPage(self), "settings": SettingsPage(self),
+            "backups": BackupsPage(self), "sources": SourcesPage(self), "settings": SettingsPage(self),
         }
         for page in self.pages.values():
             self.stack.addWidget(page)
@@ -378,7 +380,7 @@ class MainWindow(QMainWindow):
     def fix_issue(self, issue):
         if not self.game or not issue.fixable:
             return
-        if issue.action == "search":
+        if issue.action in ("search", "open_url"):
             QDesktopServices.openUrl(QUrl(issue.params["url"]))
             return
         answer = QMessageBox.question(self, "Fix issue", f"{issue.title}\n\nModTender will: {issue.action_label}.\n\n"
@@ -433,6 +435,26 @@ class MainWindow(QMainWindow):
 
         self._run("Fixing…", fixer.fix_issues, game, issues, root, on_done=done)
 
+    def _refresh_sources(self):
+        """Fetch the latest 'Get mods' list in the background (never blocks other tasks)."""
+        task = Task(sources.refresh_sources, self._update_repo(), parent=self)
+        self._tasks.append(task)
+
+        def done(data):
+            self.mod_sources = data
+            if task in self._tasks:
+                self._tasks.remove(task)
+            if self.current_page == "sources":
+                self.pages["sources"].refresh()
+
+        task.done.connect(done, Qt.ConnectionType.QueuedConnection)
+        task.failed.connect(lambda _m: self._tasks.remove(task) if task in self._tasks else None,
+                            Qt.ConnectionType.QueuedConnection)
+        task.start()
+
+    def open_url(self, url: str):
+        QDesktopServices.openUrl(QUrl(url))
+
     def open_log_folder(self):
         reveal_in_explorer(log_dir())
 
@@ -486,6 +508,10 @@ class MainWindow(QMainWindow):
 
     def create_backup(self):
         if not self.game:
+            return
+        if self.game.workshop_only:
+            QMessageBox.information(self, "Back up", "All of this game's mods come from the Steam Workshop. Steam keeps "
+                                    "them, so there's nothing to back up. Resubscribe on Steam to get any of them back.")
             return
         game, root, keep = self.game, self.settings.backup_root, self.settings.keep_backups
 

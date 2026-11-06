@@ -24,6 +24,7 @@ class GameDef:
     rule_hint: str = ""
     required_root_file: str | None = None  # file every archive mod must have at its root
     protected_rule: str | None = None  # base-game files that must never be disabled
+    steam_appid: int = 0  # links the game to its Steam Workshop folder
 
 
 KNOWN_GAMES: tuple[GameDef, ...] = (
@@ -52,15 +53,18 @@ KNOWN_GAMES: tuple[GameDef, ...] = (
     GameDef("cyberpunk", "Cyberpunk 2077", ("{steam:Cyberpunk 2077}/archive/pc/mod",), extensions=(".archive", ".xl")),
     GameDef("bg3", "Baldur's Gate 3", ("{localappdata}/Larian Studios/Baldur's Gate 3/Mods",), extensions=(".pak",)),
     GameDef("valheim", "Valheim (BepInEx)", ("{steam:Valheim}/BepInEx/plugins",), allows_dll=True),
-    GameDef("rimworld", "RimWorld", ("{steam:RimWorld}/Mods",)),
-    GameDef("ets2", "Euro Truck Simulator 2", ("{documents}/Euro Truck Simulator 2/mod",), extensions=(".scs", ".zip")),
-    GameDef("ats", "American Truck Simulator", ("{documents}/American Truck Simulator/mod",), extensions=(".scs", ".zip")),
+    GameDef("rimworld", "RimWorld", ("{steam:RimWorld}/Mods",), steam_appid=294100),
+    GameDef("ets2", "Euro Truck Simulator 2", ("{documents}/Euro Truck Simulator 2/mod",), extensions=(".scs", ".zip"),
+            steam_appid=227300),
+    GameDef("ats", "American Truck Simulator", ("{documents}/American Truck Simulator/mod",), extensions=(".scs", ".zip"),
+            steam_appid=270880),
     GameDef("cs2", "Cities: Skylines II", ("{locallow}/Colossal Order/Cities Skylines II/Mods",), allows_dll=True),
     GameDef("snowrunner", "SnowRunner", ("{documents}/My Games/SnowRunner/base/Mods",)),
 )
 
 GAME_DEFS = {g.id: g for g in KNOWN_GAMES}
 GENERIC = GameDef("custom", "Custom game", ())
+WORKSHOP = GameDef("workshop", "Steam Workshop game", ())
 
 
 @dataclass
@@ -69,11 +73,18 @@ class Game:
     name: str
     mods_dir: Path
     definition: GameDef
-    source: str = "detected"  # detected | steam | curseforge | custom
+    source: str = "detected"  # detected | steam | curseforge | custom | workshop
+    workshop_dir: Path | None = None  # steamapps/workshop/content/<appid>, scanned as well
+    steam_appid: int = 0
 
     @property
     def custom(self) -> bool:
         return self.source == "custom"
+
+    @property
+    def workshop_only(self) -> bool:
+        """All of this game's mods are managed by Steam (nothing for ModTender to move or back up)."""
+        return self.source == "workshop"
 
 
 # ---------------------------------------------------------------- Steam
@@ -141,8 +152,38 @@ def _resolve_template(template: str, libraries: list[Path]) -> list[Path]:
 
 # ---------------------------------------------------------------- detection
 
+def steam_workshops(libraries: list[Path]) -> dict[int, tuple[Path, str]]:
+    """appid -> (workshop content folder, game name) for every Steam game with Workshop items."""
+    found: dict[int, tuple[Path, str]] = {}
+    for lib in libraries:
+        content = lib / "steamapps" / "workshop" / "content"
+        if not content.is_dir():
+            continue
+        for d in content.iterdir():
+            if not (d.is_dir() and d.name.isdigit()):
+                continue
+            try:
+                if not any(p.is_dir() for p in d.iterdir()):
+                    continue  # no items subscribed
+            except OSError:
+                continue
+            appid, name = int(d.name), ""
+            for manifest_lib in libraries:  # the game may be installed in a different library
+                acf = manifest_lib / "steamapps" / f"appmanifest_{appid}.acf"
+                try:
+                    m = re.search(r'"name"\s+"([^"]+)"', acf.read_text(encoding="utf-8", errors="ignore"))
+                except OSError:
+                    continue
+                if m:
+                    name = m.group(1)
+                    break
+            found.setdefault(appid, (d, name or f"Steam app {appid}"))
+    return found
+
+
 def detect_games(custom_games: list[dict] | None = None) -> list[Game]:
     libraries = steam_libraries()
+    workshops = steam_workshops(libraries)
     games: list[Game] = []
 
     for gdef in KNOWN_GAMES:
@@ -158,8 +199,14 @@ def detect_games(custom_games: list[dict] | None = None) -> list[Game]:
                             break
             if hit is not None:
                 source = "steam" if template.startswith("{steam:") else "detected"
-                games.append(Game(gdef.id, gdef.name, hit, gdef, source))
+                ws = workshops.pop(gdef.steam_appid, (None, ""))[0] if gdef.steam_appid else None
+                games.append(Game(gdef.id, gdef.name, hit, gdef, source, workshop_dir=ws, steam_appid=gdef.steam_appid))
                 break
+        else:
+            if gdef.steam_appid and gdef.steam_appid in workshops:
+                # Only Workshop mods (no local mod folder): still worth listing under the known game.
+                ws, _ = workshops.pop(gdef.steam_appid)
+                games.append(Game(gdef.id, gdef.name, ws, gdef, "workshop", workshop_dir=ws, steam_appid=gdef.steam_appid))
 
     # Every CurseForge Minecraft instance is its own "game" with its own mods folder.
     cf_root = paths.HOME / "curseforge" / "minecraft" / "Instances"
@@ -170,6 +217,11 @@ def detect_games(custom_games: list[dict] | None = None) -> list[Game]:
             if mods.is_dir():
                 slug = re.sub(r"[^a-z0-9]+", "-", inst.name.lower()).strip("-")
                 games.append(Game(f"cf-{slug}", f"Minecraft - {inst.name} (CurseForge)", mods, mc, "curseforge"))
+
+    # Every other Steam game with Workshop mods gets its own entry.
+    for appid, (ws, name) in sorted(workshops.items(), key=lambda kv: kv[1][1].lower()):
+        games.append(Game(f"steam-{appid}", f"{name} (Steam Workshop)", ws, WORKSHOP, "workshop",
+                          workshop_dir=ws, steam_appid=appid))
 
     for entry in custom_games or []:
         base = GAME_DEFS.get(entry.get("base", ""), GENERIC)

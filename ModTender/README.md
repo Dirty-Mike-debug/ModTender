@@ -1,4 +1,4 @@
-# ModTender 0.6
+# ModTender 0.7
 
 A mod manager and safety tool for Windows. It finds your games, checks every mod for problems, explains how to fix them, and keeps backups you can restore at any time.
 
@@ -18,7 +18,9 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
 
 ## What it does
 
-- **Finds your games automatically.** It checks Steam libraries (on any drive), your real Documents folder (even when OneDrive moved it), AppData, and every CurseForge Minecraft instance. For anything else, use **+ Add game** and pick the mods folder.
+- **Finds your games automatically.** It checks Steam libraries (on any drive), your real Documents folder (even when OneDrive moved it), AppData, and every CurseForge Minecraft instance. For anything else, use **Add game** and pick the mods folder.
+- **Steam Workshop**: Workshop mods are scanned alongside local ones, and every Steam game you have Workshop mods for appears in the game list. ModTender never moves Workshop files; the Workshop page button takes you to Steam to unsubscribe.
+- **Get mods**: trusted download sites per game (official sites, community sites, required mod loaders) plus safety tips. The list lives in `modtender/assets/mod_sources.json` and the app fetches the latest copy from GitHub.
 - **Dashboard**: a health score, mod count, number of issues and your last backup, all in one place.
 - **Mods**: search, sort and filter your mods, with versions read from the mods themselves (Farming Simulator `modDesc.xml`, Fabric/Quilt/Forge, Stardew SMAPI). **Disable** moves a mod out of the game's folder; **Enable** moves it back. Nothing is deleted.
 - **Issues** detected:
@@ -64,6 +66,7 @@ modtender/core/         no UI code; can be tested on its own
   manager.py            enable / disable
   report.py             text report
   settings.py           JSON settings
+  sources.py            'Get mods' database (bundled + refreshed from GitHub)
   updates.py            GitHub Releases update check
   self_update.py        in-app download + install
 modtender/ui/           PySide6 interface (theme, pages, main window)

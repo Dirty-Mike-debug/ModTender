@@ -61,6 +61,9 @@ _PATHS = {
     "save": '<path d="M12 3v10"/><path d="m8 9 4 4 4-4"/><rect x="3" y="15" width="18" height="6" rx="1"/>',
     "fix": '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3'
            'l6.9-6.9a6 6 0 0 1 7.9-7.9z"/>',
+    "sources": '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/>'
+               '<path d="M12 3a14 14 0 0 0 0 18"/>',
+    "external": '<path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>',
     "plus": '<path d="M12 5v14"/><path d="M5 12h14"/>',
     "search": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     "palette": '<circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/>'

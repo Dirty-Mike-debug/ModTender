@@ -38,10 +38,20 @@ class Mod:
     dependencies: list[str] = field(default_factory=list)  # FS mod names / Stardew UniqueIDs
     inner_zips: list[str] = field(default_factory=list)  # zips packed inside this zip (mod packs)
     nested_root: str = ""  # folder inside the archive that holds the real mod (zipped one level too deep)
+    origin: str = "local"  # local | workshop (managed by Steam)
+    workshop_id: str = ""
 
     @property
     def display_name(self) -> str:
-        return self.title or self.name
+        return self.title or (f"Workshop item {self.workshop_id}" if self.workshop_id else self.name)
+
+    @property
+    def workshop(self) -> bool:
+        return self.origin == "workshop"
+
+    @property
+    def workshop_url(self) -> str:
+        return f"https://steamcommunity.com/sharedfiles/filedetails/?id={self.workshop_id}" if self.workshop_id else ""
 
     @property
     def modified(self) -> datetime:
@@ -223,6 +233,47 @@ def _inspect_archive(mod: Mod, deep: bool) -> None:
         mod.corrupt = f"Couldn't open the archive: {exc}"
 
 
+def _apply_rimworld_about(mod: Mod, data: bytes) -> None:
+    try:
+        root = ElementTree.fromstring(data)
+    except ElementTree.ParseError:
+        return
+    get = lambda tag: (root.findtext(tag) or "").strip()
+    mod.title = mod.title or get("name")
+    mod.author = mod.author or get("author")
+    mod.mod_id = mod.mod_id or get("packageId").lower()
+    mod.version = mod.version or get("modVersion")
+    for li in root.iterfind("modDependencies/li"):
+        pid = (li.findtext("packageId") or "").strip().lower()
+        if pid and pid not in mod.dependencies:
+            mod.dependencies.append(pid)
+
+
+def _apply_scs_manifest(mod: Mod, data: bytes) -> None:  # Euro / American Truck Simulator
+    text = data.decode("utf-8", errors="ignore")
+    for attr, key in (("title", "display_name"), ("version", "package_version"), ("author", "author")):
+        m = re.search(rf'^\s*{key}\s*:\s*"([^"]*)"', text, re.M)
+        if m and not getattr(mod, attr):
+            setattr(mod, attr, m.group(1))
+
+
+def _apply_folder_extras(mod: Mod) -> None:
+    about = mod.path / "About" / "About.xml"
+    if about.is_file():
+        try:
+            _apply_rimworld_about(mod, about.read_bytes()[:500_000])
+        except OSError:
+            pass
+    manifests = [mod.path / "manifest.sii"] + list(mod.path.glob("*/manifest.sii"))[:3]
+    for f in manifests:
+        if f.is_file():
+            try:
+                _apply_scs_manifest(mod, f.read_bytes()[:200_000])
+            except OSError:
+                pass
+            break
+
+
 def _inspect_folder(mod: Mod) -> None:
     total = 0
     risky: list[str] = []
@@ -250,6 +301,8 @@ def _inspect_folder(mod: Mod) -> None:
                     pass
         if mod.title or mod.mod_id:
             break
+    if not (mod.title or mod.mod_id) and mod.path.is_dir():
+        _apply_folder_extras(mod)
 
 
 # ---------------------------------------------------------------- scanning
@@ -267,14 +320,18 @@ def scan_game(game: Game, deep: bool = False, progress=None) -> ScanResult:
     protected = re.compile(gdef.protected_rule, re.I) if gdef.protected_rule else None
     folder_missing = not game.mods_dir.is_dir()
 
-    candidates = [(p, True) for p in _entries(game.mods_dir)] + \
-                 [(p, False) for p in _entries(paths.disabled_dir(game.id))]
+    candidates: list[tuple[Path, bool, str]] = []
+    if not game.workshop_only:
+        candidates += [(p, True, "local") for p in _entries(game.mods_dir)]
+        candidates += [(p, False, "local") for p in _entries(paths.disabled_dir(game.id))]
+    if game.workshop_dir:
+        candidates += [(p, True, "workshop") for p in _entries(game.workshop_dir) if p.is_dir()]
     mods: list[Mod] = []
     strays: list[Path] = []
     cache = HashCache()
     total = max(len(candidates), 1)
 
-    for i, (entry, enabled) in enumerate(candidates):
+    for i, (entry, enabled, origin) in enumerate(candidates):
         if progress:
             progress(i * 100 / total, f"Checking {entry.name}")
         if entry.name.startswith(".") or entry.name.lower() in {"desktop.ini", "thumbs.db"}:
@@ -283,7 +340,12 @@ def scan_game(game: Game, deep: bool = False, progress=None) -> ScanResult:
             st = entry.stat()
         except OSError:
             continue
-        if entry.is_dir():
+        if origin == "workshop":
+            mod = Mod(entry.name, entry, "folder", 0, st.st_mtime, True, origin="workshop", workshop_id=entry.name)
+            _inspect_folder(mod)
+            if mod.size == 0:
+                mod.corrupt = "This Workshop item is empty. Steam may still be downloading it, or the download failed."
+        elif entry.is_dir():
             if not gdef.allow_folders:
                 continue  # e.g. Skyrim's Data/meshes - game content, not a mod entry
             mod = Mod(entry.name, entry, "folder", 0, st.st_mtime, enabled)
@@ -291,7 +353,7 @@ def scan_game(game: Game, deep: bool = False, progress=None) -> ScanResult:
         else:
             ext = entry.suffix.lower()
             if exts and ext not in exts:
-                if enabled:
+                if enabled and origin == "local":
                     strays.append(entry)
                 continue
             kind = "archive" if ext in ARCHIVE_EXTS else "file"
@@ -311,8 +373,8 @@ def scan_game(game: Game, deep: bool = False, progress=None) -> ScanResult:
         mods.append(mod)
 
     cache.save()
-    log.info("[%s] Scanned %s: %d mods (%d disabled), %d stray files", game.id, game.mods_dir, len(mods),
-             sum(not m.enabled for m in mods), len(strays))
+    log.info("[%s] Scanned %s: %d mods (%d disabled, %d from Steam Workshop), %d stray files", game.id,
+             game.mods_dir, len(mods), sum(not m.enabled for m in mods), sum(m.workshop for m in mods), len(strays))
     if progress:
         progress(100, "Scan complete")
     return ScanResult(game, mods, strays, datetime.now(), folder_missing)

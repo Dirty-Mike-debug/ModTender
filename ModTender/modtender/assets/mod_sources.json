@@ -1,0 +1,213 @@
+{
+  "updated": "2026-11-06",
+  "kinds": {
+    "official": "Official",
+    "trusted": "Trusted community site",
+    "loader": "Needed first",
+    "tool": "Helpful tool",
+    "caution": "Good to know"
+  },
+  "general_tips": [
+    "Download from the game's official mod site or a well-known site below, or from the author's own page.",
+    "Avoid 'mirror' sites that re-upload other people's mods. They're often full of ads and fake download buttons, and sometimes malware.",
+    "A real mod is almost never an .exe file. If a download is a program you have to run, be very careful.",
+    "Check that the mod is made for your game version, and read its requirements: many mods need another mod installed first.",
+    "After adding mods, press Scan in ModTender to catch duplicates, broken downloads and missing requirements."
+  ],
+  "games": {
+    "fs25": {
+      "sources": [
+        {"name": "ModHub", "kind": "official", "url": "https://www.farming-simulator.com/mods.php?title=fs2025",
+         "note": "GIANTS' own mod site, also built into the game. Every mod is tested by GIANTS before release."},
+        {"name": "Creators' own pages", "kind": "trusted", "url": "",
+         "note": "Many modders also publish on their own website, itch.io, Patreon or GitHub. These aren't tested by GIANTS, but they come straight from the author."}
+      ],
+      "tips": [
+        "Leave mods zipped: Farming Simulator reads the .zip directly.",
+        "File names must only use letters, numbers and underscores. ModTender fixes this for you.",
+        "Lots of 'FS25 mods' websites copy ModHub mods and wrap them in ads. If a mod is on ModHub, download it there."
+      ]
+    },
+    "fs22": {
+      "sources": [
+        {"name": "ModHub", "kind": "official", "url": "https://www.farming-simulator.com/mods.php?title=fs2022",
+         "note": "GIANTS' own mod site, also built into the game. Every mod is tested by GIANTS before release."}
+      ],
+      "tips": [
+        "Make sure a mod says FS22: FS25 mods don't work in FS22 and the other way around.",
+        "Leave mods zipped: Farming Simulator reads the .zip directly."
+      ]
+    },
+    "minecraft": {
+      "sources": [
+        {"name": "Modrinth", "kind": "trusted", "url": "https://modrinth.com/mods",
+         "note": "Open-source mod site with a clean, fast launcher-friendly catalogue. Some popular mods (like Sodium) are mainly published here."},
+        {"name": "CurseForge", "kind": "trusted", "url": "https://www.curseforge.com/minecraft",
+         "note": "The biggest Minecraft mod and modpack site, with its own app for installing modpacks."},
+        {"name": "Fabric", "kind": "loader", "url": "https://fabricmc.net/use/",
+         "note": "Mod loader for Fabric mods. Most Fabric mods also need Fabric API."},
+        {"name": "NeoForge", "kind": "loader", "url": "https://neoforged.net/",
+         "note": "Mod loader for NeoForge mods (most big modpacks on 1.21 use it)."},
+        {"name": "Forge", "kind": "loader", "url": "https://files.minecraftforge.net/",
+         "note": "The original mod loader, used by older versions and many classic modpacks."},
+        {"name": "StopModReposts", "kind": "caution", "url": "https://stopmodreposts.org/",
+         "note": "Explains which sites copy mods without permission, and offers a browser extension that warns you."}
+      ],
+      "tips": [
+        "Every mod must match your Minecraft version AND your loader (Fabric, Forge or NeoForge).",
+        "In a modpack, let the pack's app (CurseForge or Modrinth) manage updates. Adding or removing mods by hand can break the pack."
+      ]
+    },
+    "stardew": {
+      "sources": [
+        {"name": "SMAPI", "kind": "loader", "url": "https://smapi.io/",
+         "note": "The mod loader almost every Stardew mod needs. Install it first."},
+        {"name": "Nexus Mods", "kind": "trusted", "url": "https://www.nexusmods.com/stardewvalley",
+         "note": "Where most Stardew Valley mods are published."},
+        {"name": "ModDrop", "kind": "trusted", "url": "https://www.moddrop.com/stardew-valley/",
+         "note": "Smaller site where some Stardew authors publish too."},
+        {"name": "CurseForge", "kind": "trusted", "url": "https://www.curseforge.com/stardewvalley",
+         "note": "Some Stardew mods are published here as well."}
+      ],
+      "tips": [
+        "Content packs (folders whose name starts with [CP], [JA] and so on) need their framework mod, like Content Patcher. ModTender flags it if one is missing.",
+        "SMAPI's log (smapi.io/log) is the quickest way to see why a mod isn't loading."
+      ]
+    },
+    "skyrimse": {
+      "sources": [
+        {"name": "Nexus Mods", "kind": "trusted", "url": "https://www.nexusmods.com/skyrimspecialedition",
+         "note": "The main home of Skyrim SE / Anniversary Edition mods."},
+        {"name": "Creations", "kind": "official", "url": "https://creations.bethesda.net/",
+         "note": "Bethesda's official mod and Creation Club store, also in the game's menu."},
+        {"name": "SKSE", "kind": "loader", "url": "https://skse.silverlock.org/",
+         "note": "Script extender many big mods need. Must match your exact game version."},
+        {"name": "Mod Organizer 2", "kind": "tool", "url": "https://github.com/ModOrganizer2/modorganizer/releases",
+         "note": "Load-order manager that keeps your game folder clean. Recommended for large mod lists."}
+      ],
+      "tips": [
+        "Game updates often break SKSE plugins. If mods stop working after an update, wait for them to update too.",
+        "Load order matters: mods lower in the list win when two change the same thing."
+      ]
+    },
+    "fallout4": {
+      "sources": [
+        {"name": "Nexus Mods", "kind": "trusted", "url": "https://www.nexusmods.com/fallout4",
+         "note": "The main home of Fallout 4 mods."},
+        {"name": "Creations", "kind": "official", "url": "https://creations.bethesda.net/",
+         "note": "Bethesda's official mod and Creation Club store, also in the game's menu."},
+        {"name": "F4SE", "kind": "loader", "url": "https://f4se.silverlock.org/",
+         "note": "Script extender many big mods need. Must match your exact game version."}
+      ],
+      "tips": [
+        "Fallout 4's Next-Gen update split mods into old-gen and next-gen versions. Pick the one that matches your game."
+      ]
+    },
+    "cyberpunk": {
+      "sources": [
+        {"name": "Nexus Mods", "kind": "trusted", "url": "https://www.nexusmods.com/cyberpunk2077",
+         "note": "Where nearly all Cyberpunk 2077 mods are published."},
+        {"name": "Cyber Engine Tweaks", "kind": "loader", "url": "https://github.com/maximegmd/CyberEngineTweaks/releases",
+         "note": "Framework many script mods need. Others need RED4ext, ArchiveXL or TweakXL: check each mod's requirements."}
+      ],
+      "tips": [
+        "After a game patch, framework mods usually need an update first. Update those before anything else."
+      ]
+    },
+    "bg3": {
+      "sources": [
+        {"name": "In-game Mod Manager (mod.io)", "kind": "official", "url": "https://mod.io/g/baldursgate3",
+         "note": "Larian's official mod browser, on the game's main menu. Works on PC, Mac and consoles."},
+        {"name": "Nexus Mods", "kind": "trusted", "url": "https://www.nexusmods.com/baldursgate3",
+         "note": "Bigger selection, including mods that can't be on the official browser."},
+        {"name": "BG3 Mod Manager", "kind": "tool", "url": "https://github.com/LaughingLeader/BG3ModManager/releases",
+         "note": "Community load-order tool for Nexus mods. Its GitHub page is the only official download."}
+      ],
+      "tips": [
+        "Turning on mods disables achievements in Baldur's Gate 3.",
+        "Mods from the official browser are managed by the game. Don't move them around by hand."
+      ]
+    },
+    "valheim": {
+      "sources": [
+        {"name": "Thunderstore", "kind": "trusted", "url": "https://thunderstore.io/c/valheim/",
+         "note": "Where most Valheim mods live. Its r2modman app installs them for you."},
+        {"name": "BepInExPack for Valheim", "kind": "loader", "url": "https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/",
+         "note": "The mod loader every Valheim mod needs. Take this exact package."},
+        {"name": "Nexus Mods", "kind": "trusted", "url": "https://www.nexusmods.com/valheim",
+         "note": "Some Valheim mods are published here too."}
+      ],
+      "tips": [
+        "Valheim 1.0 (September 2026) broke many older mods. Check a mod was updated after that before installing it.",
+        "In multiplayer, client-and-server mods must be installed by every player and on the server."
+      ]
+    },
+    "rimworld": {
+      "sources": [
+        {"name": "Steam Workshop", "kind": "trusted", "url": "https://steamcommunity.com/app/294100/workshop/",
+         "note": "Where nearly all RimWorld mods are published. Subscribing installs and updates them."},
+        {"name": "RimSort", "kind": "tool", "url": "https://github.com/RimSort/RimSort/releases",
+         "note": "Free mod-order manager that sorts mods and warns about problems."}
+      ],
+      "tips": [
+        "Many mods need Harmony and must load near the top of the list.",
+        "Check each mod supports your RimWorld version (1.5, 1.6…)."
+      ]
+    },
+    "ets2": {
+      "sources": [
+        {"name": "Steam Workshop", "kind": "trusted", "url": "https://steamcommunity.com/app/227300/workshop/",
+         "note": "The easiest place to get Euro Truck Simulator 2 mods: subscribe and they install themselves."},
+        {"name": "SCS Software forum", "kind": "trusted", "url": "https://forum.scssoft.com/",
+         "note": "Official forum where many map and truck mods are announced and supported."}
+      ],
+      "tips": [
+        "Map mods often need to be in a specific order in the in-game Mod Manager. Follow the author's instructions."
+      ]
+    },
+    "ats": {
+      "sources": [
+        {"name": "Steam Workshop", "kind": "trusted", "url": "https://steamcommunity.com/app/270880/workshop/",
+         "note": "The easiest place to get American Truck Simulator mods: subscribe and they install themselves."},
+        {"name": "SCS Software forum", "kind": "trusted", "url": "https://forum.scssoft.com/",
+         "note": "Official forum where many map and truck mods are announced and supported."}
+      ],
+      "tips": [
+        "Map mods often need to be in a specific order in the in-game Mod Manager. Follow the author's instructions."
+      ]
+    },
+    "cs2": {
+      "sources": [
+        {"name": "Paradox Mods", "kind": "official", "url": "https://mods.paradoxplaza.com/games/cities_skylines_2",
+         "note": "The only official mod platform for Cities: Skylines II. Also built into the game's main menu."}
+      ],
+      "tips": [
+        "Cities: Skylines II doesn't use the Steam Workshop, and mods for the first game don't work in it."
+      ]
+    },
+    "snowrunner": {
+      "sources": [
+        {"name": "mod.io", "kind": "official", "url": "https://mod.io/g/snowrunner",
+         "note": "SnowRunner's official mod platform. Subscribe on the site or in the game's mod browser."}
+      ],
+      "tips": [
+        "You need a mod.io account linked in the game's Mods menu before subscribed mods download."
+      ]
+    },
+    "custom": {
+      "sources": [
+        {"name": "Nexus Mods", "kind": "trusted", "url": "https://www.nexusmods.com/games",
+         "note": "The biggest general mod site, covering thousands of games."},
+        {"name": "mod.io", "kind": "trusted", "url": "https://mod.io/g",
+         "note": "Official mod platform for many games, often built into the game."},
+        {"name": "Thunderstore", "kind": "trusted", "url": "https://thunderstore.io/",
+         "note": "Popular for Unity games such as Lethal Company, R.E.P.O. and Risk of Rain 2."},
+        {"name": "Steam Workshop", "kind": "trusted", "url": "https://steamcommunity.com/workshop/",
+         "note": "If your game supports it, subscribing installs and updates mods automatically."}
+      ],
+      "tips": [
+        "Search for '<game name> official mods' first: many games have their own mod site."
+      ]
+    }
+  }
+}

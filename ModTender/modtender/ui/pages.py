@@ -210,6 +210,8 @@ class ModsPage(Page):
     def __init__(self, win):
         super().__init__(win)
         self.actions.addWidget(button("Show in Explorer", self._reveal, icon_name="folder"))
+        self.actions.addWidget(button("Workshop page", self._workshop, icon_name="external",
+                                      tip="Open the selected Steam Workshop item on Steam"))
         self.actions.addWidget(button("Disable", lambda: win.set_enabled(self.selected(), False),
                                       tip="Moves the mod out of the game's folder. Nothing is deleted."))
         self.actions.addWidget(button("Enable", lambda: win.set_enabled(self.selected(), True), "Primary"))
@@ -221,7 +223,7 @@ class ModsPage(Page):
         self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(self.refresh)
         self.filter = QComboBox()
-        self.filter.addItems(["All mods", "Enabled", "Disabled", "With issues"])
+        self.filter.addItems(["All mods", "Enabled", "Disabled", "With issues", "Steam Workshop", "Local files"])
         self.filter.setMinimumWidth(150)
         self.filter.currentIndexChanged.connect(self.refresh)
         bar.addWidget(self.search, 1)
@@ -246,6 +248,14 @@ class ModsPage(Page):
         if mods:
             self.win.reveal(mods[0].path)
 
+    def _workshop(self):
+        mods = [m for m in self.selected() if m.workshop]
+        if mods:
+            for m in mods[:5]:
+                self.win.open_url(m.workshop_url)
+        else:
+            self.win.status("Select a Steam Workshop mod first.")
+
     def refresh(self):
         scan = self.win.scan
         self.table.setSortingEnabled(False)
@@ -263,24 +273,26 @@ class ModsPage(Page):
         for m in scan.mods:
             if text and text not in m.name.lower() and text not in m.title.lower():
                 continue
-            if (mode == 1 and not m.enabled) or (mode == 2 and m.enabled) or (mode == 3 and m.name not in flagged):
+            if (mode == 1 and not m.enabled) or (mode == 2 and m.enabled) or (mode == 3 and m.name not in flagged) \
+                    or (mode == 4 and not m.workshop) or (mode == 5 and m.workshop):
                 continue
             r = self.table.rowCount()
             self.table.insertRow(r)
-            status = "Game file" if m.protected else "Enabled" if m.enabled else "Disabled"
+            status = "Workshop" if m.workshop else "Game file" if m.protected else "Enabled" if m.enabled else "Disabled"
             n_issues = flagged.get(m.name, 0)
             cells = [
                 SortItem(f"●  {status}", status),
                 SortItem(m.display_name, m.display_name.lower()),
                 SortItem(m.version or "–"),
-                SortItem(m.kind.capitalize()),
+                SortItem("Steam Workshop" if m.workshop else m.kind.capitalize()),
                 SortItem(human_size(m.size), m.size),
                 SortItem(m.modified.strftime("%Y-%m-%d"), m.mtime),
                 SortItem(f"⚠  {n_issues}" if n_issues else "", n_issues),
             ]
-            cells[0].setForeground(QColor(theme.ACCENT if m.enabled else theme.MUTED))
+            cells[0].setForeground(QColor(theme.INFO if m.workshop else theme.ACCENT if m.enabled else theme.MUTED))
             cells[1].setData(Qt.ItemDataRole.UserRole, m)
-            cells[1].setToolTip(f"{m.name}\n{m.path}" + (f"\nby {m.author}" if m.author else ""))
+            cells[1].setToolTip((f"Steam Workshop item {m.workshop_id}" if m.workshop else m.name) + f"\n{m.path}"
+                                + (f"\nby {m.author}" if m.author else ""))
             if n_issues:
                 cells[6].setForeground(QColor(theme.WARNING))
             if not m.enabled:
@@ -291,7 +303,9 @@ class ModsPage(Page):
             shown += 1
         self.table.setSortingEnabled(True)
         enabled = sum(m.enabled for m in scan.mods)
-        self.subheading.setText(f"Showing {shown} of {len(scan.mods)} · {enabled} enabled")
+        ws = sum(m.workshop for m in scan.mods)
+        self.subheading.setText(f"Showing {shown} of {len(scan.mods)} · {enabled} enabled"
+                                + (f" · {ws} from Steam Workshop" if ws else ""))
 
 
 # ---------------------------------------------------------------- Issues
@@ -443,8 +457,14 @@ class BackupsPage(Page):
         if self.win.game is None:
             self.subheading.setText("")
             return
-        self.subheading.setText(f"{len(self.win.backups)} backups · keeping the newest "
-                                f"{self.win.settings.keep_backups} · {self.win.settings.backup_root}")
+        if self.win.game.workshop_only:
+            self.subheading.setText("This game's mods all come from the Steam Workshop. Steam keeps them safe, "
+                                    "so there's nothing to back up: resubscribe to get any of them back.")
+        else:
+            self.subheading.setText(f"{len(self.win.backups)} backups · keeping the newest "
+                                    f"{self.win.settings.keep_backups} · {self.win.settings.backup_root}"
+                                    + (" · Workshop mods aren't included: Steam keeps those."
+                                       if self.win.game.workshop_dir else ""))
         for b in self.win.backups:
             r = self.table.rowCount()
             self.table.insertRow(r)
@@ -664,3 +684,125 @@ class SettingsPage(Page):
         item = self.custom.currentItem()
         if item:
             self.win.remove_custom_game(item.data(Qt.ItemDataRole.UserRole))
+
+
+# ---------------------------------------------------------------- Get mods
+
+KIND_COLORS = {"official": "ACCENT", "trusted": "INFO", "loader": "WARNING", "tool": "MUTED", "caution": "CRITICAL"}
+
+
+class SourcesPage(Page):
+    title = "Get mods"
+
+    def __init__(self, win):
+        super().__init__(win)
+        from ..core.games import KNOWN_GAMES
+        self.choice = QComboBox()
+        self.choice.setMinimumWidth(230)
+        for g in KNOWN_GAMES:
+            self.choice.addItem(g.name, g.id)
+        self.choice.addItem("Other games", "custom")
+        self.choice.currentIndexChanged.connect(lambda _: self._render())
+        self.actions.addWidget(QLabel("Show for", objectName="Muted"))
+        self.actions.addWidget(self.choice)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        body = QWidget(objectName="ScrollBody")
+        self.body = QVBoxLayout(body)
+        self.body.setContentsMargins(0, 0, 12, 0)
+        self.body.setSpacing(12)
+        scroll.setWidget(body)
+        self.root.addWidget(scroll, 1)
+        self._game_id = None
+
+    def refresh(self):
+        gid = self.win.game.definition.id if self.win.game else "custom"
+        if gid != self._game_id:  # follow the selected game, but keep a manual choice until it changes
+            self._game_id = gid
+            idx = self.choice.findData(gid)
+            self.choice.blockSignals(True)
+            self.choice.setCurrentIndex(idx if idx >= 0 else self.choice.count() - 1)
+            self.choice.blockSignals(False)
+        self._render()
+
+    def _clear(self):
+        while self.body.count():
+            item = self.body.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+            elif item.layout():
+                while item.layout().count():
+                    sub = item.layout().takeAt(0)
+                    if sub.widget():
+                        sub.widget().deleteLater()
+
+    def _card(self, src: dict, kinds: dict) -> QWidget:
+        from PySide6.QtWidgets import QFrame
+        card = QFrame(objectName="Card")
+        lay = QHBoxLayout(card)
+        lay.setContentsMargins(18, 14, 18, 14)
+        lay.setSpacing(14)
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        top = QHBoxLayout()
+        top.setSpacing(10)
+        top.addWidget(QLabel(src.get("name", ""), objectName="Section"))
+        kind = src.get("kind", "trusted")
+        color = getattr(theme, KIND_COLORS.get(kind, "INFO"))
+        badge = QLabel(kinds.get(kind, kind.title()))
+        badge.setStyleSheet(f"color: {color}; border: 1px solid {color}; border-radius: 9px; "
+                            f"padding: 1px 8px; font-size: 8.5pt; font-weight: 600;")
+        top.addWidget(badge)
+        top.addStretch()
+        col.addLayout(top)
+        note = QLabel(src.get("note", ""), objectName="Muted")
+        note.setWordWrap(True)
+        col.addWidget(note)
+        url = src.get("url", "")
+        if url:
+            link = QLabel(url.replace("https://", "").rstrip("/"), objectName="Muted")
+            link.setStyleSheet("font-size: 8.5pt;")
+            link.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            col.addWidget(link)
+        lay.addLayout(col, 1)
+        if url:
+            lay.addWidget(button("Open", lambda _=False, u=url: self.win.open_url(u), icon_name="external"),
+                          0, Qt.AlignmentFlag.AlignVCenter)
+        return card
+
+    def _tips(self, title: str, tips: list[str]):
+        if not tips:
+            return
+        self.body.addWidget(QLabel(title, objectName="Section"))
+        for tip in tips:
+            lbl = QLabel(f"•  {tip}")
+            lbl.setWordWrap(True)
+            self.body.addWidget(lbl)
+
+    def _render(self):
+        from ..core.sources import for_game
+        data = self.win.mod_sources
+        gid = self.choice.currentData() or "custom"
+        entry = for_game(data, gid)
+        self.subheading.setText(f"Trusted places to download mods for {self.choice.currentText()}. "
+                                "ModTender doesn't download anything: these open in your browser.")
+        self._clear()
+        game = self.win.game
+        if game and game.steam_appid and game.workshop_dir and gid == game.definition.id:
+            self.body.addWidget(self._card({
+                "name": "Steam Workshop", "kind": "trusted",
+                "url": f"https://steamcommunity.com/app/{game.steam_appid}/workshop/",
+                "note": "You're subscribed to Workshop mods for this game. Subscribing installs and updates mods for you.",
+            }, data.get("kinds", {})))
+        for src in entry.get("sources", []):
+            self.body.addWidget(self._card(src, data.get("kinds", {})))
+        self.body.addSpacing(6)
+        self._tips("Tips for this game", entry.get("tips", []))
+        self.body.addSpacing(6)
+        self._tips("Staying safe", data.get("general_tips", []))
+        if data.get("updated"):
+            self.body.addSpacing(6)
+            self.body.addWidget(QLabel(f"List updated {data['updated']}. It refreshes automatically.", objectName="Muted"))
+        self.body.addStretch()
