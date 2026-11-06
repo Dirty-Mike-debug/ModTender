@@ -1,4 +1,4 @@
-# ModTender 0.14
+# ModTender 0.15
 
 A mod manager and safety tool for Windows. It finds your games, checks every mod for problems, explains how to fix them, and keeps backups you can restore at any time.
 
@@ -35,6 +35,9 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
   - Crash logs: names the mod most likely behind a crash (Minecraft, Stardew Valley, Valheim, Farming Simulator)
   - Baldur's Gate 3: mods not in the mod list, and listed mods whose file is missing
   - files the game can't use (`.rar`, readmes, unfinished downloads)
+- **Install mods**: drag downloaded mods onto the window (or **Install mod** on the Mods page). ModTender copies or unpacks them into the right place for the game, and moves any older copy to quarantine instead of overwriting it.
+- **Mod updates** (Minecraft): checks Modrinth for newer versions that match your loader and Minecraft version, verifies each download, and keeps the old version in disabled mods.
+- **Crash logs**: after a crash, the Issues page names the mod most likely to blame. **Read crash log** opens any log by hand.
 - **Fix / Fix all**: most issues can be repaired with one click. Fix all applies every safe fix in the right order and can back up your mods first. Nothing is ever deleted: removed files go to ModTender's disabled or quarantine folder (Backups → Quarantine).
 - **Missing mods**: flags mods that need another mod you don't have installed or have disabled (Farming Simulator and Stardew Valley).
 - **Backups**: snapshots of the whole mods folder where each mod file is stored only once, so repeat backups take little space. Automatic backups (daily, weekly, and/or when mods change), "What changed since?" for any backup, and "Mark as working" + "Roll back to working setup". Restoring never deletes anything: your current folder is renamed to `mods.before-restore-…` first. The oldest backups are cleaned up automatically (10 per game by default, working setups are always kept).
@@ -42,6 +45,7 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
 - **Updates**: *Check for updates* (bottom of the sidebar, or Settings → Updates) finds new versions on GitHub Releases. *Update now* downloads and installs it, then restarts ModTender. The previous version is kept in `.modtender-update\previous` and restored automatically if an install fails.
 - **Users**: each person on the PC gets their own settings, theme and games, with an optional PIN.
 - **Personalize**: profile picture or colored initial, Dashboard greeting, favorite games pinned to the top, start page, text size and compact layout. Online accounts are planned alongside Free vs Pro.
+- **Report a problem** (sidebar): saves a zip with your description, the log and scan, and opens a pre-filled GitHub report. Nothing is sent automatically.
 - **Export report**: a plain-text summary to paste when asking for help on a forum or Discord.
 
 ## Supported games out of the box

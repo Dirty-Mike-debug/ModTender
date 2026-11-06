@@ -14,6 +14,25 @@ def _env_path(var: str, fallback: Path) -> Path:
     return Path(value) if value else fallback
 
 
+def _shell_folder(csidl: int, fallback: Path) -> Path:
+    """A special folder as Windows reports it (OneDrive often moves Documents and Desktop)."""
+    if IS_WINDOWS:
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            buf = ctypes.create_unicode_buffer(wintypes.MAX_PATH)
+            if ctypes.windll.shell32.SHGetFolderPathW(None, csidl, None, 0, buf) == 0 and buf.value:
+                return Path(buf.value)
+        except Exception:
+            pass
+    return fallback
+
+
+def desktop_dir() -> Path:
+    return _shell_folder(0x10, HOME / "Desktop")  # CSIDL_DESKTOPDIRECTORY
+
+
 def _documents_dir() -> Path:
     """The real Documents folder. On Windows this asks the shell, because
     OneDrive often moves Documents somewhere other than ~/Documents."""

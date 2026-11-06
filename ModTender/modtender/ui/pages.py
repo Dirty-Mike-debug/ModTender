@@ -232,10 +232,15 @@ class ModsPage(Page):
 
     def __init__(self, win):
         super().__init__(win)
+        self.actions.addWidget(button("Install mod", win.choose_mods_to_install, icon_name="plus",
+                                      tip="Install downloaded mods. You can also drag files onto this window."))
         self.actions.addWidget(button("Show in Explorer", self._reveal, icon_name="folder"))
         self.ws_button = button("Workshop page", self._workshop, icon_name="external",
                                 tip="Open the selected Steam Workshop item on Steam")
         self.actions.addWidget(self.ws_button)
+        self.upd_button = button("Mod updates", win.check_mod_updates, icon_name="update",
+                                 tip="Look up newer versions of these mods on Modrinth")
+        self.actions.addWidget(self.upd_button)
         self.actions.addWidget(button("Disable", lambda: win.set_enabled(self.selected(), False),
                                       tip="Moves the mod out of the game's folder. Nothing is deleted."))
         self.actions.addWidget(button("Enable", lambda: win.set_enabled(self.selected(), True), "Primary"))
@@ -285,6 +290,7 @@ class ModsPage(Page):
         self.table.setSortingEnabled(False)
         self.table.setRowCount(0)
         self.ws_button.setVisible(bool(scan and any(m.workshop for m in scan.mods)))
+        self.upd_button.setVisible(bool(scan and scan.game.definition.id == "minecraft"))
         if scan is None:
             self.subheading.setText("Scan a game to see its mods.")
             return

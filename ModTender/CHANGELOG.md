@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.15.0
+- **Install mods by drag and drop.** Drop downloaded mods anywhere on the window (or use **Install mod** on the Mods page) and ModTender puts them where the game expects: copies .jar/.zip/.package files, unpacks zips for games that use folders (Stardew, RimWorld, Witcher 3), puts Valheim Thunderstore packages into BepInEx/plugins, sends Cyberpunk files to the right game folders, and unpacks Skyrim/Fallout mods into Data. Older copies with the same name go to quarantine instead of being overwritten. Tells you plainly when something can't be installed (RAR/7z files, FOMOD installers).
+- **Mod updates (Minecraft).** **Mod updates** on the Mods page checks Modrinth for newer versions that match your loader and Minecraft version. Pick which to install; downloads are checked against Modrinth's checksum, and old versions are kept in disabled mods so you can switch back. Warns before updating mods inside a CurseForge modpack.
+- **Report a problem** in the sidebar: saves a zip with your description, ModTender's log, your scan and system info, and opens a pre-filled GitHub report. Nothing is sent automatically.
+
 ## 0.14.3
 - Fixed: mods turned off by CurseForge (files ending in .jar.disabled) were reported as files the game can't use, and Fix all moved them out of the mods folder. They're now left alone.
 

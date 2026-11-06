@@ -37,6 +37,7 @@ class MainWindow(QMainWindow):
         self.resize(1280, 800)
         self.setMinimumSize(1000, 640)
 
+        self.setAcceptDrops(True)  # drop downloaded mods anywhere on the window to install them
         self.settings = load_settings()
         log.info("ModTender %s started (Python %s), user: %s", __version__, sys.version.split()[0],
                  user.name if user else "-")
@@ -171,6 +172,12 @@ class MainWindow(QMainWindow):
         upd.setCursor(Qt.CursorShape.PointingHandCursor)
         upd.clicked.connect(lambda: self.check_for_updates())
         lay.addWidget(upd)
+        bug = QPushButton("Report a problem", objectName="Ghost")
+        bug.setIcon(icon("crash", theme.MUTED))
+        bug.setIconSize(QSize(14, 14))
+        bug.setCursor(Qt.CursorShape.PointingHandCursor)
+        bug.clicked.connect(lambda: self.report_problem())
+        lay.addWidget(bug)
         lay.addWidget(QLabel(f"   Version {__version__}", objectName="Version"))
         return side
 
@@ -676,6 +683,108 @@ class MainWindow(QMainWindow):
             self.status(f"{'Enabled' if enable else 'Disabled'} {changed} mod(s).")
             self.start_scan()
 
+    # ------------------------------------------------------------ installing mods
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls() and any(u.isLocalFile() for u in event.mimeData().urls()):
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        files = [Path(u.toLocalFile()) for u in event.mimeData().urls() if u.isLocalFile()]
+        if files:
+            event.acceptProposedAction()
+            self.install_mods(files)
+
+    def choose_mods_to_install(self):
+        if not self.game:
+            return
+        start = str(Path.home() / "Downloads")
+        files, _ = QFileDialog.getOpenFileNames(self, f"Choose mods to install into {self.game.name}", start,
+                                                "Mods (*.zip *.jar *.pak *.package *.archive *.esp *.esm *.esl "
+                                                "*.dll *.rar *.7z *.ts4script);;All files (*)")
+        if files:
+            self.install_mods([Path(f) for f in files])
+
+    def install_mods(self, files):
+        if not self.game:
+            QMessageBox.information(self, APP_NAME, "Pick a game first.")
+            return
+        names = "\n".join(f"   {f.name}" for f in files[:12]) + (f"\n   …and {len(files) - 12} more" if len(files) > 12 else "")
+        answer = QMessageBox.question(
+            self, "Install mods",
+            f"Install {'this file' if len(files) == 1 else f'these {len(files)} files'} into {self.game.name}?\n\n"
+            f"{names}\n\nIf a mod with the same name is already installed, the old copy is moved to "
+            "ModTender's quarantine folder, not deleted.")
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        from ..core import installer
+        game = self.game
+
+        def work(progress):
+            progress(30, f"Installing into {game.name}…")
+            return installer.install(game, files)
+
+        def done(result):
+            lines = []
+            if result.installed:
+                lines.append("Installed:\n" + "\n".join(f"   {n}" for n in result.installed))
+            if result.replaced:
+                lines.append("Older copies moved to quarantine:\n" + "\n".join(f"   {n}" for n in result.replaced))
+            if result.problems:
+                lines.append("Not installed:\n" + "\n".join(f"   {n}" for n in result.problems))
+            box = QMessageBox.warning if result.problems and not result.installed else QMessageBox.information
+            box(self, "Install mods", "\n\n".join(lines) or "Nothing was installed.")
+            if result.installed:
+                self.status(f"Installed {len(result.installed)} item(s). Scanning for issues…")
+                self.scan = None
+                self.start_scan()
+
+        self._run("Installing mods…", work, on_done=done)
+
+    # ------------------------------------------------------------ mod updates (Modrinth)
+
+    def check_mod_updates(self):
+        if not self.game or not self.scan:
+            QMessageBox.information(self, APP_NAME, "Scan the game first.")
+            return
+        from ..core import modupdates
+        game, mods = self.game, list(self.scan.mods)
+
+        def failed(message):
+            QMessageBox.warning(self, "Mod updates", message.split("\n\n")[0])
+
+        def found(result):
+            from .mod_updates import ModUpdatesDialog
+            self.status(f"{len(result.updates)} mod update(s) found.")
+            dlg = ModUpdatesDialog(self, game, result)
+            if dlg.exec() and dlg.chosen:
+                self._install_mod_updates(game, dlg.chosen)
+
+        def work(progress):
+            try:
+                return modupdates.check_updates(game, mods, progress)
+            except modupdates.UpdateCheckError as exc:
+                raise RuntimeError(str(exc)) from None
+
+        self._run("Checking Modrinth for mod updates…", work, on_done=found, on_fail=failed)
+
+    def _install_mod_updates(self, game, chosen):
+        from ..core import modupdates
+
+        def done(result):
+            ok, problems = result
+            parts = []
+            if ok:
+                parts.append(f"Updated {len(ok)} mod(s):\n" + "\n".join(f"   {l}" for l in ok[:30]))
+            if problems:
+                parts.append("Couldn't update:\n" + "\n".join(f"   {l}" for l in problems[:30]))
+            QMessageBox.information(self, "Mod updates", "\n\n".join(parts) or "Nothing changed.")
+            self.scan = None
+            self.start_scan()
+
+        self._run(f"Updating {len(chosen)} mod(s)…", lambda progress: modupdates.apply_updates(game, chosen, progress),
+                  on_done=done)
+
     def reveal(self, path):
         reveal_in_explorer(Path(path))
 
@@ -683,6 +792,35 @@ class MainWindow(QMainWindow):
         if self.game:
             self.game.mods_dir.mkdir(parents=True, exist_ok=True)
             reveal_in_explorer(self.game.mods_dir)
+
+    def report_problem(self):
+        from ..core import problem_report
+        text, ok = QInputDialog.getMultiLineText(
+            self, "Report a problem",
+            "What went wrong? What were you doing when it happened?\n\n"
+            "ModTender will save a zip with this description, its log, your mod list and some system info. "
+            "These include folder paths on your PC (with your Windows user name). Nothing is sent "
+            "automatically: you choose whether to share it.")
+        if not ok:
+            return
+        try:
+            target = problem_report.build_bundle(problem_report.default_path(), text, self.games, self.game,
+                                                 self.scan, self.issues)
+        except OSError as exc:
+            QMessageBox.warning(self, "Report a problem", f"Couldn't save the report: {exc}")
+            return
+        reveal_in_explorer(target)
+        box = QMessageBox(self)
+        box.setWindowTitle("Report a problem")
+        box.setText(f"Saved {target.name} to {target.parent}.")
+        box.setInformativeText("To send it to the developer, open a report on GitHub and drag the zip into it "
+                               "(you'll need a free GitHub account). Or send the zip directly to whoever "
+                               "gave you ModTender.")
+        github = box.addButton("Open GitHub report page", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("Done", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        if box.clickedButton() is github:
+            QDesktopServices.openUrl(QUrl(problem_report.issue_url(text, self.game)))
 
     def export_report(self):
         if not self.scan:
