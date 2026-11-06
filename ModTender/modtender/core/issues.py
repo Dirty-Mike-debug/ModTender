@@ -14,6 +14,7 @@ SEVERITY_ORDER = {CRITICAL: 0, WARNING: 1, INFO: 2}
 STRAY_HINTS = {
     ".rar": "The game can't read .rar files. Extract it, then add the mod inside.",
     ".7z": "The game can't read .7z files. Extract it, then add the mod inside.",
+    ".zip": "The game can't read zipped mods. Extract it, then put the folder inside here.",
     ".txt": "A text file, usually a readme.",
     ".pdf": "A document, usually a readme.",
     ".png": "An image, probably a screenshot.",
@@ -271,6 +272,23 @@ def analyze(scan: ScanResult) -> list[Issue]:
                     [m.name], action="quarantine_mod", params={"mod": m.name},
                     action_label="Move it out of the mods folder (into ModTender's quarantine folder)",
                 ))
+
+    if gdef.name_prefix:
+        taken = {m.name.lower() for m in scan.mods}
+        for m in enabled:
+            if m.workshop or m.kind != "folder" or m.name in extra_copies or m.name.lower().startswith(gdef.name_prefix):
+                continue
+            new = gdef.name_prefix + m.name.replace(" ", "")
+            if new.lower() in taken:
+                new = f"{new}_2"
+            issues.append(Issue(
+                CRITICAL, "The game will ignore this mod (bad folder name)",
+                f"'{m.name}' doesn't start with '{gdef.name_prefix}'. {gdef.rule_hint}",
+                f"Rename the folder to '{new}'. Check the mod's instructions first: some mods ship a "
+                "'dlc' folder that belongs in the game's dlc folder instead.",
+                [m.name], action="rename", params={"mod": m.name, "new": new},
+                action_label=f"Rename it to {new}",
+            ))
 
     issues += _dependency_issues(scan, extra_copies)
 

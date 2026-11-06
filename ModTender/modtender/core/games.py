@@ -25,6 +25,8 @@ class GameDef:
     required_root_file: str | None = None  # file every archive mod must have at its root
     protected_rule: str | None = None  # base-game files that must never be disabled
     steam_appid: int = 0  # links the game to its Steam Workshop folder
+    folders_only: bool = False  # mods must be folders; loose files (zips etc.) are ignored by the game
+    name_prefix: str = ""  # mod names must start with this; Fix renames by adding it
 
 
 KNOWN_GAMES: tuple[GameDef, ...] = (
@@ -50,6 +52,12 @@ KNOWN_GAMES: tuple[GameDef, ...] = (
     GameDef("fallout4", "Fallout 4", ("{steam:Fallout 4}/Data",),
             extensions=(".esp", ".esm", ".esl", ".ba2"), allow_folders=False,
             protected_rule=r"^(Fallout4|DLC\w+)\.esm$|^(Fallout4|DLC\w+) - .*\.ba2$|^cc.*\.(esl|esm|ba2)$"),
+    GameDef("witcher3", "The Witcher 3: Wild Hunt",
+            ("{steam:The Witcher 3}/mods",
+             "C:/Program Files (x86)/GOG Galaxy/Games/The Witcher 3 Wild Hunt GOTY/mods",
+             "C:/GOG Games/The Witcher 3 Wild Hunt GOTY/mods"),
+            folders_only=True, name_prefix="mod", steam_appid=292030,
+            rule_hint="The Witcher 3 only loads folders in 'mods' whose names start with 'mod'."),
     GameDef("cyberpunk", "Cyberpunk 2077", ("{steam:Cyberpunk 2077}/archive/pc/mod",), extensions=(".archive", ".xl")),
     GameDef("bg3", "Baldur's Gate 3", ("{localappdata}/Larian Studios/Baldur's Gate 3/Mods",), extensions=(".pak",)),
     GameDef("valheim", "Valheim (BepInEx)", ("{steam:Valheim}/BepInEx/plugins",), allows_dll=True),

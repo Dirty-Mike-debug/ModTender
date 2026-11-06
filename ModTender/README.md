@@ -38,7 +38,7 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
 
 ## Supported games out of the box
 
-Farming Simulator 25 & 22, Minecraft Java (plus CurseForge instances), Stardew Valley, Skyrim SE, Fallout 4, Cyberpunk 2077, Baldur's Gate 3, Valheim (BepInEx), RimWorld, Euro Truck Simulator 2, American Truck Simulator, Cities: Skylines II, SnowRunner. Any other game works through **+ Add game**.
+Farming Simulator 25 & 22, Minecraft Java (plus CurseForge instances), Stardew Valley, Skyrim SE, Fallout 4, The Witcher 3, Cyberpunk 2077, Baldur's Gate 3, Valheim (BepInEx), RimWorld, Euro Truck Simulator 2, American Truck Simulator, Cities: Skylines II, SnowRunner. Any other game works through **Add game**, and every Steam game you have Workshop mods for is listed automatically.
 
 To add a game permanently, add a `GameDef` entry to `modtender/core/games.py`.
 

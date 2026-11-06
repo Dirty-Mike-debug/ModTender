@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+- **The Witcher 3: Wild Hunt support.** Finds the game on Steam or GOG, scans its mods folder and Steam Workshop items, and flags mod folders the game ignores because their name doesn't start with "mod" (Fix renames them). Zipped mods left in the mods folder are flagged too.
+- Witcher 3 added to the Get mods page: Nexus Mods, the Steam Workshop, Community Patch - Shared Imports, Script Merger and REDkit, plus install tips.
+
 ## 0.7.0
 - **Steam Workshop mods are scanned too.** RimWorld and Euro/American Truck Simulator show their Workshop mods next to local ones, and every other Steam game you have Workshop mods for gets its own entry in the game list.
   - Workshop items show their real names (RimWorld About.xml, SCS manifest.sii) and a Workshop page button

@@ -352,7 +352,7 @@ def scan_game(game: Game, deep: bool = False, progress=None) -> ScanResult:
             _inspect_folder(mod)
         else:
             ext = entry.suffix.lower()
-            if exts and ext not in exts:
+            if (exts and ext not in exts) or (gdef.folders_only and origin == "local"):
                 if enabled and origin == "local":
                     strays.append(entry)
                 continue
