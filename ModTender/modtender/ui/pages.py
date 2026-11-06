@@ -39,6 +39,7 @@ def button(text: str, slot, kind: str = "", icon_name: str = "", tip: str = "") 
         b.setToolTip(tip)
     b.clicked.connect(slot)
     b.setCursor(Qt.CursorShape.PointingHandCursor)
+    b.setMinimumWidth(b.sizeHint().width())  # never squash the label ("Quarantin…")
     return b
 
 
@@ -90,6 +91,7 @@ class Page(QWidget):
         col.addWidget(self.greeting)
         self.heading = QLabel(self.title, objectName="PageTitle")
         self.subheading = QLabel("", objectName="Muted")
+        self.subheading.setWordWrap(True)
         self.subheading.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         col.addWidget(self.heading)
         col.addWidget(self.subheading)
@@ -149,7 +151,8 @@ class DashboardPage(Page):
         self.empty = QLabel("", objectName="Muted")
         self.empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.root.addWidget(self.issue_table, 1)
-        self.root.addWidget(self.empty)
+        self.root.addWidget(self.empty, 1)
+        self.empty.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
 
     def _message(self, text: str, color: str | None = None):
         self.issue_table.hide()
@@ -194,10 +197,10 @@ class DashboardPage(Page):
             crit = sum(i.severity == "critical" for i in issues)
             warn = sum(i.severity == "warning" for i in issues)
             info = len(issues) - crit - warn
-            color = theme.CRITICAL if crit else theme.WARNING if warn else theme.ACCENT
+            color = theme.CRITICAL if crit else theme.WARNING if warn else theme.SUCCESS
             self.problems.set(str(crit + warn), f"{crit} critical · {warn} warnings · {info} notes", color)
             if not issues:
-                self._message("✓  No problems found. Your mods look healthy.", theme.ACCENT)
+                self._message("✓  No problems found. Your mods look healthy.", theme.SUCCESS)
             else:
                 self.empty.hide()
                 self.issue_table.show()
@@ -305,7 +308,7 @@ class ModsPage(Page):
                 SortItem(m.modified.strftime("%Y-%m-%d"), m.mtime),
                 SortItem(f"⚠  {n_issues}" if n_issues else "", n_issues),
             ]
-            cells[0].setForeground(QColor(theme.INFO if m.workshop else theme.ACCENT if m.enabled else theme.MUTED))
+            cells[0].setForeground(QColor(theme.INFO if m.workshop else theme.SUCCESS if m.enabled else theme.MUTED))
             cells[1].setData(Qt.ItemDataRole.UserRole, m)
             cells[1].setToolTip((f"Steam Workshop item {m.workshop_id}" if m.workshop else m.name) + f"\n{m.path}"
                                 + (f"\nby {m.author}" if m.author else ""))
@@ -417,7 +420,7 @@ class IssuesPage(Page):
             affects.setToolTip("\n".join(issue.mods))
             fix = SortItem("Auto-fix" if issue.fixable and issue.safe else "Fix button" if issue.fixable else "Manual",
                            0 if issue.fixable and issue.safe else 1 if issue.fixable else 2)
-            fix.setForeground(QColor(theme.ACCENT if issue.fixable else theme.MUTED))
+            fix.setForeground(QColor(theme.SUCCESS if issue.fixable else theme.MUTED))
             for c, item in enumerate((severity_item(issue.severity), title, affects, fix)):
                 self.table.setItem(r, c, item)
         if issues:
@@ -664,6 +667,7 @@ class SettingsPage(Page):
         for i, (key, label) in enumerate(theme.EDITABLE):
             r, c = divmod(i, 2)
             cell = QHBoxLayout()
+            cell.setSpacing(10)
             cell.addWidget(ColorButton(getattr(theme.CURRENT, key),
                                        lambda col, k=key: self.win.set_theme_color(k, col), f"{label} color"))
             cell.addWidget(QLabel(label))
@@ -813,7 +817,7 @@ class SettingsPage(Page):
 
 # ---------------------------------------------------------------- Get mods
 
-KIND_COLORS = {"official": "ACCENT", "trusted": "INFO", "loader": "WARNING", "tool": "MUTED", "caution": "CRITICAL"}
+KIND_COLORS = {"official": "SUCCESS", "trusted": "INFO", "loader": "WARNING", "tool": "MUTED", "caution": "CRITICAL"}
 
 
 class SourcesPage(Page):
@@ -844,6 +848,8 @@ class SourcesPage(Page):
 
     def refresh(self):
         gid = self.win.game.definition.id if self.win.game else "custom"
+        if gid == "workshop":
+            gid = "custom"
         if gid != self._game_id:  # follow the selected game, but keep a manual choice until it changes
             self._game_id = gid
             idx = self.choice.findData(gid)
@@ -911,11 +917,15 @@ class SourcesPage(Page):
         data = self.win.mod_sources
         gid = self.choice.currentData() or "custom"
         entry = for_game(data, gid)
-        self.subheading.setText(f"Trusted places to download mods for {self.choice.currentText()}. "
+        game = self.win.game
+        shown = (game.name.replace(" (Steam Workshop)", "") if game and game.workshop_only and gid == "custom"
+                 else self.choice.currentText())
+        self.subheading.setText(f"Trusted places to download mods for {shown}. "
                                 "ModTender doesn't download anything: these open in your browser.")
         self._clear()
         game = self.win.game
-        if game and game.steam_appid and game.workshop_dir and gid == game.definition.id:
+        own = game and (gid == game.definition.id or (game.workshop_only and gid == "custom"))
+        if game and game.steam_appid and game.workshop_dir and own:
             self.body.addWidget(self._card({
                 "name": "Steam Workshop", "kind": "trusted",
                 "url": f"https://steamcommunity.com/app/{game.steam_appid}/workshop/",

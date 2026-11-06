@@ -382,6 +382,8 @@ def scan_game(game: Game, deep: bool = False, progress=None) -> ScanResult:
         mods.append(mod)
 
     cache.save()
+    from .workshop_names import apply_titles
+    apply_titles(mods)
     log.info("[%s] Scanned %s: %d mods (%d disabled, %d from Steam Workshop), %d stray files", game.id,
              game.mods_dir, len(mods), sum(not m.enabled for m in mods), sum(m.workshop for m in mods), len(strays))
     if progress:

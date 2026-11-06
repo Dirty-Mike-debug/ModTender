@@ -21,6 +21,7 @@ class Palette:
     critical: str = "#f0605d"
     warning: str = "#e5a93b"
     info: str = "#4f9cf0"
+    success: str = "#3ecf8e"  # "healthy / enabled" stays green whatever the accent is
     dark: bool = True
 
 
@@ -30,7 +31,7 @@ PRESETS: dict[str, Palette] = {
     "Nord": Palette("#2e3440", "#2a2f3a", "#3b4252", "#4c566a", "#eceff4", "#a7b0c0", "#88c0d0",
                     critical="#bf616a", warning="#ebcb8b", info="#81a1c1"),
     "Daylight": Palette("#f4f6f9", "#ffffff", "#ffffff", "#dde3ea", "#1b2430", "#5f6b7a", "#2563eb",
-                        critical="#d33a3a", warning="#b7791f", info="#2563eb", dark=False),
+                        critical="#d33a3a", warning="#b7791f", info="#2563eb", success="#16a34a", dark=False),
 }
 
 ACCENT_SWATCHES = ["#3ecf8e", "#2dd4bf", "#4f8cff", "#a371f7", "#ec6cb9", "#f85149", "#f0883e", "#e3b341"]
@@ -40,7 +41,7 @@ EDITABLE = [("accent", "Accent"), ("bg", "Background"), ("sidebar", "Sidebar"),
             ("surface", "Cards & tables"), ("border", "Borders"), ("text", "Text"), ("muted", "Secondary text")]
 
 # Live values (updated by apply)
-BG = SIDEBAR = SURFACE = BORDER = TEXT = MUTED = ACCENT = CRITICAL = WARNING = INFO = ""
+BG = SIDEBAR = SURFACE = BORDER = TEXT = MUTED = ACCENT = CRITICAL = WARNING = INFO = SUCCESS = ""
 SEVERITY_COLORS: dict[str, str] = {}
 CURRENT: Palette = PRESETS["Midnight"]
 COMPACT = False  # tighter rows and margins
@@ -65,24 +66,25 @@ def _on_color(color: str) -> str:
 
 def resolve(preset: str, overrides: dict | None) -> Palette:
     base = PRESETS.get(preset, PRESETS["Midnight"])
-    valid = {k: v for k, v in (overrides or {}).items() if k in asdict(base) and k != "dark" and QColor(v).isValid()}
+    valid = {k: v for k, v in (overrides or {}).items()
+             if k in asdict(base) and k not in ("dark", "success") and QColor(v).isValid()}
     pal = replace(base, **valid)
     # A custom background decides light vs dark mode.
     return replace(pal, dark=QColor(pal.bg).lightness() < 128)
 
 
 def score_color(score: int) -> str:
-    return ACCENT if score >= 90 else WARNING if score >= 70 else CRITICAL
+    return SUCCESS if score >= 90 else WARNING if score >= 70 else CRITICAL
 
 
 def apply(app, preset: str = "Midnight", overrides: dict | None = None, scale: float = 1.0,
           compact: bool = False) -> Palette:
-    global BG, SIDEBAR, SURFACE, BORDER, TEXT, MUTED, ACCENT, CRITICAL, WARNING, INFO, CURRENT, COMPACT
+    global BG, SIDEBAR, SURFACE, BORDER, TEXT, MUTED, ACCENT, CRITICAL, WARNING, INFO, SUCCESS, CURRENT, COMPACT
     COMPACT = compact
     p = resolve(preset, overrides)
     CURRENT = p
     BG, SIDEBAR, SURFACE, BORDER, TEXT, MUTED = p.bg, p.sidebar, p.surface, p.border, p.text, p.muted
-    ACCENT, CRITICAL, WARNING, INFO = p.accent, p.critical, p.warning, p.info
+    ACCENT, CRITICAL, WARNING, INFO, SUCCESS = p.accent, p.critical, p.warning, p.info, p.success
     SEVERITY_COLORS.clear()
     SEVERITY_COLORS.update(critical=CRITICAL, warning=WARNING, info=INFO)
     if app is not None:
@@ -135,6 +137,8 @@ QPushButton:pressed {{ background: {pressed}; }}
 QPushButton:disabled {{ color: {p.muted}; }}
 QPushButton#Primary {{ background: {p.accent}; color: {on_accent}; border: 1px solid {p.accent}; font-weight: 600; }}
 QPushButton#Primary:hover {{ background: {accent_hover}; border-color: {accent_hover}; }}
+QPushButton#Primary:disabled {{ background: {p.border}; border-color: {p.border}; color: {p.muted}; }}
+QPushButton#Star {{ padding: 0; min-height: 0; font-size: 12pt; }}
 QPushButton#Danger {{ color: {p.critical}; }}
 QPushButton#Danger:hover {{ border-color: {p.critical}; }}
 QPushButton#Ghost {{ background: transparent; border: none; color: {p.muted}; text-align: left; padding: 6px 10px; }}

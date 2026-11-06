@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import APP_NAME, UPDATE_REPO, __version__
-from ..core import backups, fixer, manager, paths, self_update, sources, updates
+from ..core import backups, fixer, manager, paths, self_update, sources, updates, workshop_names
 from ..core.games import Game, detect_games, make_custom_game_entry
 from ..core.issues import analyze
 from ..core.log import log, log_dir
@@ -94,7 +94,7 @@ class MainWindow(QMainWindow):
     def _build_sidebar(self) -> QWidget:
         side = QWidget(objectName="Sidebar")
         side.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        side.setFixedWidth(236)
+        side.setFixedWidth(260)
         lay = QVBoxLayout(side)
         lay.setContentsMargins(14, 20, 14, 14)
         lay.setSpacing(4)
@@ -121,8 +121,8 @@ class MainWindow(QMainWindow):
         game_row = QHBoxLayout()
         game_row.setSpacing(6)
         game_row.addWidget(self.game_box, 1)
-        self.star = QPushButton("☆")
-        self.star.setFixedWidth(34)
+        self.star = QPushButton("☆", objectName="Star")
+        self.star.setFixedSize(34, 30)
         self.star.setToolTip("Pin this game to the top of the list")
         self.star.setCursor(Qt.CursorShape.PointingHandCursor)
         self.star.clicked.connect(self.toggle_favorite)
@@ -239,6 +239,8 @@ class MainWindow(QMainWindow):
             self.game_box.addItem(("★  " if g.id in self.settings.favorite_games else "") + g.name, g.id)
         if self.game in self.games:
             self.game_box.setCurrentIndex(self.games.index(self.game))
+        self.game_box.view().setMinimumWidth(max(self.game_box.view().sizeHintForColumn(0) + 30, 220))
+        self.game_box.setToolTip(self.game.name if self.game else "")
         self.game_box.blockSignals(False)
         self._update_star()
 
@@ -264,6 +266,7 @@ class MainWindow(QMainWindow):
         if self.game is self.games[idx] and self.scan is not None:
             return
         self.game = self.games[idx]
+        self.game_box.setToolTip(self.game.name)
         self._update_star()
         self.scan, self.issues = None, []
         self.settings.last_game = self.game.id
@@ -340,6 +343,9 @@ class MainWindow(QMainWindow):
             self.issues = analyze(scan)
             self.refresh_all()
             self.status(f"Scanned {len(scan.mods)} mods · {len(self.issues)} issues")
+            untitled = [m.workshop_id for m in scan.mods if m.workshop and not m.title]
+            if untitled:
+                self._fetch_workshop_titles(scan, untitled)
 
         self._run(f"Scanning {game.name}…", scan_game, game, self.settings.deep_check, on_done=done)
 
@@ -500,6 +506,28 @@ class MainWindow(QMainWindow):
         task.failed.connect(lambda _m: self._tasks.remove(task) if task in self._tasks else None,
                             Qt.ConnectionType.QueuedConnection)
         task.start()
+
+    def _fetch_workshop_titles(self, scan, ids):
+        """Look up Workshop item names in the background, then show them."""
+        task = Task(workshop_names.fetch_titles, ids, parent=self)
+        self._tasks.append(task)
+
+        def done(cache):
+            if task in self._tasks:
+                self._tasks.remove(task)
+            if self.scan is scan and workshop_names.apply_titles(scan.mods, cache) < len(ids):
+                self.issues = analyze(scan)
+                self.refresh_all()
+
+        task.done.connect(done, Qt.ConnectionType.QueuedConnection)
+        task.failed.connect(lambda _m: self._tasks.remove(task) if task in self._tasks else None,
+                            Qt.ConnectionType.QueuedConnection)
+        task.start()
+
+    def bring_to_front(self):
+        self.showNormal() if self.isMinimized() else self.show()
+        self.raise_()
+        self.activateWindow()
 
     def open_url(self, url: str):
         QDesktopServices.openUrl(QUrl(url))

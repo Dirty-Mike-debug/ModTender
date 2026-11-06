@@ -27,11 +27,20 @@ def main() -> int:
     app.setApplicationName(APP_NAME)
     app.setStyle("Fusion")
 
+    server = None
+    if "--self-test" not in sys.argv:
+        server = single_instance()
+        if server is None:
+            return 0  # ModTender is already open: it has been brought to the front
+
     user = sign_in(app, force=False)
     if user is None:
         return 0
     window = MainWindow(user)
     window.show()
+    if server is not None:
+        server.newConnection.connect(lambda: (server.nextPendingConnection(), current["w"].bring_to_front()))
+    current = {"w": window}
     if "--self-test" in sys.argv:
         # Used by the release build: open the full window, then report success and quit.
         import os
@@ -55,7 +64,32 @@ def main() -> int:
         if user is None:
             return code
         window = MainWindow(user)
+        current["w"] = window
         window.show()
+
+
+def single_instance():
+    """Return a server if this is the only ModTender running; otherwise wake the open one and return None."""
+    import getpass
+
+    from PySide6.QtNetwork import QLocalServer, QLocalSocket
+
+    try:
+        name = f"ModTender-{getpass.getuser()}"
+    except Exception:
+        name = "ModTender"
+    sock = QLocalSocket()
+    sock.connectToServer(name)
+    if sock.waitForConnected(300):
+        sock.write(b"show")
+        sock.waitForBytesWritten(300)
+        sock.disconnectFromServer()
+        return None
+    server = QLocalServer()
+    if not server.listen(name):
+        QLocalServer.removeServer(name)  # left over from a crash
+        server.listen(name)
+    return server
 
 
 def sign_in(app, force: bool):

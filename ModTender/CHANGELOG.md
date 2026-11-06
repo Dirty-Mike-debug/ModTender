@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.1
+Fixes from a look at the app on a real PC:
+- Dashboard cards no longer stretch to fill the window
+- "Healthy", "Enabled" and "No problems" are always green, whatever your accent color
+- Buttons never get their labels cut off, and long page descriptions wrap
+- The ☆ favorite button and the game list are wider, and the full game name shows on hover
+- Only one ModTender window: opening it again brings the open window to the front
+- Steam Workshop items show their real names (looked up from Steam once and remembered)
+- Get mods links the Steam Workshop for Workshop-only games like Counter-Strike 2
+- A greyed-out Fix all looks disabled; color pickers in Settings are spaced properly
+
 ## 0.10.0
 - **Personalize ModTender** (Settings → Personalize, saved per user):
   - Profile picture: pick any image (cropped to a circle), or keep your initial and choose its color
