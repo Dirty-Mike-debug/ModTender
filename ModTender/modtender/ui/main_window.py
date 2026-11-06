@@ -1,6 +1,7 @@
 """Main window: sidebar, page stack, and every action the pages trigger."""
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from PySide6.QtCore import QSize, Qt, QTimer, QUrl
@@ -14,6 +15,7 @@ from .. import APP_NAME, UPDATE_REPO, __version__
 from ..core import backups, fixer, manager, paths, self_update, updates
 from ..core.games import Game, detect_games, make_custom_game_entry
 from ..core.issues import analyze
+from ..core.log import log, log_dir
 from ..core.manager import ModActionError
 from ..core.report import build_report
 from ..core.scanner import scan_game
@@ -34,6 +36,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1000, 640)
 
         self.settings = load_settings()
+        log.info("ModTender %s started (Python %s)", __version__, sys.version.split()[0])
         self.games: list[Game] = []
         self.game: Game | None = None
         self.scan = None
@@ -192,6 +195,7 @@ class MainWindow(QMainWindow):
 
     def reload_games(self, select: str | None = None):
         self.games = detect_games(self.settings.custom_games)
+        log.info("Games found: %s", ", ".join(f"{g.name} [{g.mods_dir}]" for g in self.games) or "none")
         wanted = select or self.settings.last_game
         self.game = None
         self._fill_game_box()
@@ -261,6 +265,7 @@ class MainWindow(QMainWindow):
 
         def fail(message):
             finish()
+            log.error("%s failed: %s", label.rstrip("…"), message)
             if on_fail:
                 return on_fail(message)
             self.status("Something went wrong.")
@@ -354,14 +359,15 @@ class MainWindow(QMainWindow):
                   on_done=downloaded, on_fail=failed)
 
     def _report_finished_update(self):
-        log = self_update.pop_update_log()
-        if not log:
+        text = self_update.pop_update_log()
+        if not text:
             return
-        if "UPDATE FAILED" in log:
+        log.info("Last update log:\n%s", text.strip())
+        if "UPDATE FAILED" in text:
             QMessageBox.warning(self, "Update",
                                 "The last update couldn't be installed, so ModTender kept the previous version. "
-                                "Details:\n\n" + log[-1200:])
-        elif "update complete" in log:
+                                "Details:\n\n" + text[-1200:])
+        elif "update complete" in text:
             self.status(f"Updated to ModTender {__version__}.")
             QMessageBox.information(self, "Update", f"ModTender was updated to {__version__}.")
 
@@ -424,6 +430,9 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Fixes applied", msg)
 
         self._run("Fixing…", fixer.fix_issues, game, issues, root, on_done=done)
+
+    def open_log_folder(self):
+        reveal_in_explorer(log_dir())
 
     def open_quarantine_folder(self):
         if self.game:

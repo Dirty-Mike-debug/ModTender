@@ -14,6 +14,7 @@ from pathlib import Path
 from . import backups, paths
 from .games import Game
 from .issues import ACTION_ORDER, Issue
+from .log import log
 
 
 @dataclass
@@ -165,15 +166,20 @@ def fix_issues(game: Game, issues: list[Issue], backup_root: Path | None = None,
     if backup_root is not None and game.mods_dir.is_dir():
         if progress:
             progress(0, "Backing up before fixing…")
+        log.info("[%s] Fix all: backing up first", game.id)
         result.backup = backups.create_backup(game, backup_root, note="Automatic backup before Fix",
                                               progress=lambda p, m: progress and progress(p * 0.8, m)).path
     for n, issue in enumerate(todo):
         if progress:
             progress(80 + 20 * n / max(len(todo), 1), f"Fixing: {issue.title}")
         try:
-            result.done += apply_fix(game, issue)
+            lines = apply_fix(game, issue)
+            result.done += lines
+            for line in lines:
+                log.info("[%s] Fix: %s", game.id, line)
         except (FixError, OSError, zipfile.BadZipFile) as exc:
             result.skipped.append(f"{issue.title} ({', '.join(issue.mods[:2])}): {exc}")
+            log.warning("[%s] Fix skipped: %s (%s): %s", game.id, issue.title, ", ".join(issue.mods[:3]), exc)
     if progress:
         progress(100, "Fixes applied")
     return result

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from . import paths
 from .games import Game
+from .log import log
 from .scanner import Mod
 
 
@@ -27,10 +28,14 @@ def disable_mod(game: Game, mod: Mod) -> Path:
         raise ModActionError(f"'{mod.name}' is a base game file and can't be disabled.")
     if not mod.enabled:
         return mod.path
-    return _move(mod.path, paths.disabled_dir(game.id))
+    dest = _move(mod.path, paths.disabled_dir(game.id))
+    log.info("[%s] Disabled %s", game.id, mod.name)
+    return dest
 
 
 def enable_mod(game: Game, mod: Mod) -> Path:
     if mod.enabled:
         return mod.path
-    return _move(mod.path, game.mods_dir)
+    dest = _move(mod.path, game.mods_dir)
+    log.info("[%s] Enabled %s", game.id, mod.name)
+    return dest

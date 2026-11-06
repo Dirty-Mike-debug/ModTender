@@ -10,6 +10,9 @@ def main() -> int:
         return 1
 
     from modtender import APP_NAME
+    from modtender.core.log import setup as setup_log
+
+    setup_log()
     from modtender.ui.main_window import MainWindow
 
     if sys.platform == "win32":

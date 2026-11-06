@@ -12,6 +12,7 @@ from xml.etree import ElementTree
 
 from . import paths
 from .games import Game
+from .log import log
 
 ARCHIVE_EXTS = {".zip", ".jar", ".scs"}
 RISKY_EXTS = {".exe", ".bat", ".cmd", ".ps1", ".vbs", ".vbe", ".scr", ".com", ".msi", ".pif", ".hta", ".wsf", ".lnk"}
@@ -151,11 +152,26 @@ def _apply_json_manifest(mod: Mod, data: bytes, kind: str) -> None:
 
 
 def _apply_mods_toml(mod: Mod, data: bytes) -> None:  # Forge / NeoForge
+    """Read the mod's own entry from the [[mods]] table. The file also lists dependencies
+    (each with its own modId), which must not be mistaken for this mod's id."""
     text = data.decode("utf-8", errors="ignore")
+    entry: dict = {}
+    try:
+        import tomllib  # Python 3.11+
+        mods = tomllib.loads(text).get("mods") or []
+        entry = mods[0] if mods and isinstance(mods[0], dict) else {}
+    except Exception:
+        # Fallback: only look inside the first [[mods]] block.
+        m = re.search(r"^\s*\[\[mods\]\]\s*$(.*?)(?=^\s*\[|\Z)", text, re.M | re.S)
+        if m:
+            for key in ("modId", "version", "displayName"):
+                km = re.search(rf'^\s*{key}\s*=\s*"([^"]*)"', m.group(1), re.M)
+                if km:
+                    entry[key] = km.group(1)
     for attr, key in (("mod_id", "modId"), ("version", "version"), ("title", "displayName")):
-        m = re.search(rf'^\s*{key}\s*=\s*"([^"]*)"', text, re.M)
-        if m and not getattr(mod, attr) and "${" not in m.group(1):
-            setattr(mod, attr, m.group(1))
+        value = str(entry.get(key, "") or "")
+        if value and "${" not in value and not getattr(mod, attr):
+            setattr(mod, attr, value)
 
 
 META_FILES = {
@@ -295,6 +311,8 @@ def scan_game(game: Game, deep: bool = False, progress=None) -> ScanResult:
         mods.append(mod)
 
     cache.save()
+    log.info("[%s] Scanned %s: %d mods (%d disabled), %d stray files", game.id, game.mods_dir, len(mods),
+             sum(not m.enabled for m in mods), len(strays))
     if progress:
         progress(100, "Scan complete")
     return ScanResult(game, mods, strays, datetime.now(), folder_missing)

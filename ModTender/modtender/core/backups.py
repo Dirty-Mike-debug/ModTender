@@ -10,6 +10,7 @@ from pathlib import Path
 
 from . import paths
 from .games import Game
+from .log import log
 
 STAMP = "%Y%m%d-%H%M%S"
 
@@ -72,6 +73,7 @@ def create_backup(game: Game, root: Path, note: str = "", progress=None) -> Back
     except BaseException:
         partial.unlink(missing_ok=True)
         raise
+    log.info("[%s] Backup created: %s (%d items)", game.id, target, manifest["mod_count"])
     if progress:
         progress(100, "Backup complete")
     return Backup(target, created, manifest["mod_count"], done, note)
@@ -134,6 +136,7 @@ def restore_backup(game: Game, backup: Backup, progress=None) -> Path:
     if not any(kept_disabled.iterdir()):
         kept_disabled.rmdir()
 
+    log.info("[%s] Restored %s; previous mods kept in %s", game.id, backup.path.name, kept)
     if progress:
         progress(100, "Restore complete")
     return kept

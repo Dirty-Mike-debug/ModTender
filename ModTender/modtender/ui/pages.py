@@ -603,6 +603,8 @@ class SettingsPage(Page):
         self._section("Updates", f"You're running ModTender {__version__}.")
         row = QHBoxLayout()
         row.addWidget(button("Check for updates", self.win.check_for_updates, "Primary", "update"))
+        row.addWidget(button("Open log folder", self.win.open_log_folder, icon_name="folder",
+                             tip="ModTender's log file: useful when asking for help"))
         row.addStretch()
         self.body.addLayout(row)
         self.auto_update = QCheckBox("Check for updates when ModTender starts")

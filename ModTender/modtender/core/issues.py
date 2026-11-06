@@ -160,6 +160,10 @@ def analyze(scan: ScanResult) -> list[Issue]:
         if len(group) < 2:
             continue
         newest = max(group, key=lambda m: (version_key(m.version), m.mtime))
+        # Matching by the id inside the mod is reliable. Matching by file name is a guess, so outside
+        # Farming Simulator (where file names are the mod's identity) it's left out of Fix all.
+        by_id = all(m.mod_id for m in group)
+        trusted = by_id or bool(gdef.name_rule)
         drop = [m.name for m in group if m is not newest]
         lines = [f"  - {m.name}" + (f"  (version {m.version})" if m.version else "") for m in group]
         issues.append(Issue(
@@ -167,6 +171,7 @@ def analyze(scan: ScanResult) -> list[Issue]:
             "These look like copies of one mod:\n" + "\n".join(lines),
             "Keep the newest version and disable the others. Mixed versions are a classic cause of errors.",
             [m.name for m in group], action="keep_newest", params={"keep": newest.name, "drop": drop},
+            safe=trusted,
             action_label=f"Keep {newest.name}" + (f" (version {newest.version})" if newest.version else " (newest)")
                          + " and disable the others",
         ))

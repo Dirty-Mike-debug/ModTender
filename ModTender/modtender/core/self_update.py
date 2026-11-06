@@ -19,6 +19,7 @@ import zipfile
 from pathlib import Path
 
 from .. import __version__
+from .log import log
 from .updates import UpdateError, UpdateInfo
 
 APP_DIR = Path(__file__).resolve().parents[2]  # folder holding main.py
@@ -64,6 +65,7 @@ def download_update(info: UpdateInfo, progress=None) -> Path:
     root = next((p.parent for p in new.rglob("main.py") if (p.parent / "modtender" / "__init__.py").is_file()), None)
     if root is None:
         raise UpdateError("The download doesn't look like a ModTender release.")
+    log.info("Update %s downloaded and unpacked to %s", info.latest, root)
     if progress:
         progress(100, "Update downloaded")
     return root
@@ -167,6 +169,7 @@ finally:
 
 def launch_installer(new_root: Path) -> None:
     """Start the helper that finishes the update once this process exits. Call, then quit the app."""
+    log.info("Starting installer, ModTender will restart")
     script = STAGE / "install_update.py"
     script.write_text(INSTALLER, encoding="utf-8")
     flags = 0
