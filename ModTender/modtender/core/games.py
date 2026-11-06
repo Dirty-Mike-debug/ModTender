@@ -27,6 +27,7 @@ class GameDef:
     steam_appid: int = 0  # links the game to its Steam Workshop folder
     folders_only: bool = False  # mods must be folders; loose files (zips etc.) are ignored by the game
     name_prefix: str = ""  # mod names must start with this; Fix renames by adding it
+    script_conflicts: bool = False  # mods replace whole script files, so two mods can't both change one
 
 
 KNOWN_GAMES: tuple[GameDef, ...] = (
@@ -56,7 +57,7 @@ KNOWN_GAMES: tuple[GameDef, ...] = (
             ("{steam:The Witcher 3}/mods",
              "C:/Program Files (x86)/GOG Galaxy/Games/The Witcher 3 Wild Hunt GOTY/mods",
              "C:/GOG Games/The Witcher 3 Wild Hunt GOTY/mods"),
-            folders_only=True, name_prefix="mod", steam_appid=292030,
+            folders_only=True, name_prefix="mod", steam_appid=292030, script_conflicts=True,
             rule_hint="The Witcher 3 only loads folders in 'mods' whose names start with 'mod'."),
     GameDef("cyberpunk", "Cyberpunk 2077", ("{steam:Cyberpunk 2077}/archive/pc/mod",), extensions=(".archive", ".xl")),
     GameDef("bg3", "Baldur's Gate 3", ("{localappdata}/Larian Studios/Baldur's Gate 3/Mods",), extensions=(".pak",)),

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0
+- **Script conflict detection for The Witcher 3.** When two mods change the same script file, only one of them works. ModTender now lists which mods clash, which files, and which mod's version is currently used, and points you to Script Merger.
+- **Out-of-date merge warning:** if you update a script mod after running Script Merger, ModTender tells you to merge again.
+
 ## 0.7.1
 - **The Witcher 3: Wild Hunt support.** Finds the game on Steam or GOG, scans its mods folder and Steam Workshop items, and flags mod folders the game ignores because their name doesn't start with "mod" (Fix renames them). Zipped mods left in the mods folder are flagged too.
 - Witcher 3 added to the Get mods page: Nexus Mods, the Steam Workshop, Community Patch - Shared Imports, Script Merger and REDkit, plus install tips.

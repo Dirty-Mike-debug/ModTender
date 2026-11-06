@@ -1,4 +1,4 @@
-# ModTender 0.7
+# ModTender 0.8
 
 A mod manager and safety tool for Windows. It finds your games, checks every mod for problems, explains how to fix them, and keeps backups you can restore at any time.
 
@@ -28,6 +28,7 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
   - the same mod installed twice, and several versions of one mod
   - mods that contain programs or scripts (`.exe`, `.bat`, `.ps1`…), as a safety warning
   - Farming Simulator 22/25: file names the game silently ignores, missing `modDesc.xml`, and mod packs that need unzipping
+  - The Witcher 3: mod folders the game ignores, script conflicts between mods, and Script Merger results that are out of date
   - files the game can't use (`.rar`, readmes, unfinished downloads)
 - **Fix / Fix all**: most issues can be repaired with one click. Fix all applies every safe fix in the right order and can back up your mods first. Nothing is ever deleted: removed files go to ModTender's disabled or quarantine folder (Backups → Quarantine).
 - **Missing mods**: flags mods that need another mod you don't have installed or have disabled (Farming Simulator and Stardew Valley).
@@ -76,7 +77,7 @@ modtender/ui/           PySide6 interface (theme, pages, main window)
 
 1. ~~Professional UI / dashboard~~ (this version)
 2. ~~Auto game/mod-folder detection~~ (first pass done; more games to add)
-3. Deeper conflict detection: ~~dependency checks~~ (done for FS and Stardew), files that overwrite each other
+3. Deeper conflict detection: ~~dependency checks~~, ~~Witcher 3 script conflicts~~; next: other games' file overrides
 4. Scheduled backups and automatic recovery
 5. Free vs Pro split
 6. ~~Windows installer~~ (done in 0.6), code signing, then Steam

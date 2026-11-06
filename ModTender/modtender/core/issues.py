@@ -290,6 +290,9 @@ def analyze(scan: ScanResult) -> list[Issue]:
                 action_label=f"Rename it to {new}",
             ))
 
+    if gdef.script_conflicts:
+        issues += _script_conflicts(scan, extra_copies)
+
     issues += _dependency_issues(scan, extra_copies)
 
     strays = scan.strays
@@ -306,6 +309,64 @@ def analyze(scan: ScanResult) -> list[Issue]:
         ))
 
     return sorted(issues, key=lambda i: i.sort_key)
+
+
+MERGED = "mod0000_mergedfiles"
+SCRIPT_MERGER_URL = "https://www.nexusmods.com/witcher3/search/?gsearch=Script%20Merger"
+
+
+def _script_conflicts(scan: ScanResult, extra_copies: set[str]) -> list[Issue]:
+    """The Witcher 3: when two mods ship the same script file, only one loads (the first in
+    alphabetical order) unless Script Merger has combined them into mod0000_MergedFiles."""
+    mods = [m for m in scan.mods if m.enabled and m.script_files and m.name not in extra_copies]
+    merged = next((m for m in mods if m.name.lower() == MERGED), None)
+    by_file: dict[str, list[Mod]] = defaultdict(list)
+    for m in mods:
+        if m is not merged:
+            for path in m.script_files:
+                by_file[path].append(m)
+
+    unmerged: dict[tuple, list[str]] = defaultdict(list)  # (mods...) -> files
+    stale: dict[str, list[str]] = defaultdict(list)  # mod updated after the merge -> files
+    for path, group in by_file.items():
+        if len(group) < 2:
+            continue
+        if merged and path in merged.script_files:
+            merged_time = merged.script_files[path]
+            for m in group:
+                if m.script_files[path] > merged_time + 2:
+                    stale[m.name].append(path)
+            continue
+        unmerged[tuple(sorted((m.name for m in group), key=str.lower))].append(path)
+
+    issues = []
+    for names, files in sorted(unmerged.items()):
+        # Mods load in alphabetical order (by ASCII, so 'mod0…' and capitals come first); the first wins.
+        winner = sorted(names)[0]
+        shown = "\n".join(f"  - {f.replace('content/scripts/', '')}" for f in sorted(files)[:8])
+        more = f"\n  …and {len(files) - 8} more" if len(files) > 8 else ""
+        issues.append(Issue(
+            WARNING, "Script conflict between mods",
+            f"{len(names)} mods change the same script file{'s' if len(files) > 1 else ''}:\n{shown}{more}\n\n"
+            f"Mods: {', '.join(names)}\n\nRight now only {winner}'s version is used, so the "
+            f"other mod{'s' if len(names) > 2 else ''} may not work fully.",
+            "Run Script Merger: it combines the changes into one mod (mod0000_MergedFiles). "
+            "Run it again whenever you add, remove or update a script mod. "
+            "If a mods.settings file sets custom priorities, the winner may differ.",
+            list(names), action="open_url", params={"url": SCRIPT_MERGER_URL}, safe=False,
+            action_label="Find Script Merger on Nexus Mods",
+        ))
+    if stale:
+        lines = "\n".join(f"  - {n} ({len(f)} file{'s' if len(f) > 1 else ''})" for n, f in sorted(stale.items()))
+        issues.append(Issue(
+            WARNING, "Merged scripts are out of date",
+            f"These mods were updated after you last ran Script Merger:\n{lines}\n\n"
+            "The merged copy still has their old scripts, which can cause errors or undo the update.",
+            "Open Script Merger, refresh, and merge again.",
+            sorted(stale) + [merged.name], action="open_url", params={"url": SCRIPT_MERGER_URL}, safe=False,
+            action_label="Find Script Merger on Nexus Mods",
+        ))
+    return issues
 
 
 def _dependency_issues(scan: ScanResult, extra_copies: set[str]) -> list[Issue]:

@@ -38,6 +38,7 @@ class Mod:
     dependencies: list[str] = field(default_factory=list)  # FS mod names / Stardew UniqueIDs
     inner_zips: list[str] = field(default_factory=list)  # zips packed inside this zip (mod packs)
     nested_root: str = ""  # folder inside the archive that holds the real mod (zipped one level too deep)
+    script_files: dict = field(default_factory=dict)  # Witcher 3: script path (lower) -> modified time
     origin: str = "local"  # local | workshop (managed by Steam)
     workshop_id: str = ""
 
@@ -287,6 +288,14 @@ def _inspect_folder(mod: Mod) -> None:
                     continue
                 if f.suffix.lower() in RISKY_EXTS and len(risky) < 20:
                     risky.append(str(f.relative_to(mod.path)).replace("\\", "/"))
+                if f.suffix.lower() == ".ws":
+                    rel = str(f.relative_to(mod.path)).replace("\\", "/").lower()
+                    i = rel.find("content/scripts/")
+                    if i >= 0:
+                        try:
+                            mod.script_files[rel[i:]] = f.stat().st_mtime
+                        except OSError:
+                            pass
     except OSError:
         pass
     mod.size, mod.risky_files = total, risky
