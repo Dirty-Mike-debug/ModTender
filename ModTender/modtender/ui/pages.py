@@ -342,6 +342,8 @@ class IssuesPage(Page):
         super().__init__(win)
         self.actions.addWidget(button("Report", win.export_report, icon_name="report"))
         self.actions.addWidget(button("Show mod", self._reveal, icon_name="folder"))
+        self.actions.addWidget(button("Read crash log", win.read_crash_log, icon_name="crash",
+                                      tip="Open a crash report or game log and see which mod is likely to blame"))
         self.actions.addWidget(button("Re-scan", win.start_scan, icon_name="scan"))
         self.fix_one = button("Fix", self._fix, icon_name="fix", tip="Apply the fix for the selected issue")
         self.actions.addWidget(self.fix_one)

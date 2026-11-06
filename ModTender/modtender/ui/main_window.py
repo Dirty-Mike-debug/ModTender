@@ -722,6 +722,43 @@ class MainWindow(QMainWindow):
         except OSError:
             return 0
 
+    def read_crash_log(self):
+        from ..core import crashlogs
+        if not self.game:
+            return
+        mods = self.scan.mods if self.scan else []
+        logs = crashlogs.find_logs(self.game)
+        start = str(logs[0]) if logs else str(self.game.mods_dir.parent)
+        path, _ = QFileDialog.getOpenFileName(self, "Open a crash report or log", start,
+                                              "Logs and crash reports (*.txt *.log);;All files (*)")
+        if not path:
+            return
+        report = crashlogs.analyze_log(Path(path), mods)
+        if report is None:
+            QMessageBox.warning(self, "Read crash log", "That file couldn't be opened.")
+            return
+        log.info("[%s] Read crash log %s: %d suspect(s)", self.game.id, path, len(report.suspects))
+        box = QMessageBox(self)
+        box.setWindowTitle("Crash log")
+        box.setText(crashlogs.describe(report))
+        top = next((s for s in report.suspects if s.mod_file), None)
+        if top:
+            box.setInformativeText(f"To test it, turn off {top.name} and start the game again. If the problem "
+                                   "goes away, update or replace that mod.")
+        if report.excerpt:
+            box.setDetailedText(report.excerpt)
+        off = box.addButton(f"Turn off {top.name}", QMessageBox.ButtonRole.AcceptRole) if top else None
+        opened = box.addButton("Open the log", QMessageBox.ButtonRole.ActionRole)
+        box.addButton("Close", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        if off is not None and box.clickedButton() is off:
+            from ..core.issues import Issue
+            self._apply_fixes([Issue("warning", "Crash suspect", "", "", [top.mod_file], action="disable",
+                                     params={"mods": [top.mod_file]}, action_label=f"Turn off {top.name}")],
+                              backup=False)
+        elif box.clickedButton() is opened:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+
     def show_changes(self, backup):
         ch = self.changes_since(backup)
         if ch is None:

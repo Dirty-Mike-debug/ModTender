@@ -1,4 +1,4 @@
-# ModTender 0.13
+# ModTender 0.14
 
 A mod manager and safety tool for Windows. It finds your games, checks every mod for problems, explains how to fix them, and keeps backups you can restore at any time.
 
@@ -31,6 +31,8 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
   - The Witcher 3: mod folders the game ignores, script conflicts between mods, and Script Merger results that are out of date
   - Skyrim SE / Fallout 4: missing or turned-off masters, masters in the wrong order, damaged plugins, plugin limits
   - Cyberpunk 2077: archive mods that overwrite each other's files, and which one wins
+  - Minecraft: mods built for a different mod loader or Minecraft version
+  - Crash logs: names the mod most likely behind a crash (Minecraft, Stardew Valley, Valheim, Farming Simulator)
   - Baldur's Gate 3: mods not in the mod list, and listed mods whose file is missing
   - files the game can't use (`.rar`, readmes, unfinished downloads)
 - **Fix / Fix all**: most issues can be repaired with one click. Fix all applies every safe fix in the right order and can back up your mods first. Nothing is ever deleted: removed files go to ModTender's disabled or quarantine folder (Backups → Quarantine).

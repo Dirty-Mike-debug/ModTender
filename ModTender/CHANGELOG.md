@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.0
+- **Minecraft: wrong loader or wrong version.** ModTender reads which mod loader (Forge, NeoForge, Fabric, Quilt) and which Minecraft versions each mod is built for, and warns about mods that won't load in your instance. For CurseForge instances it knows the exact loader and version; for other folders it works out the loader from your other mods. Understands multi-loader mods, Sinytra Connector, and NeoForge 1.20.1 loading Forge mods.
+- **Crash log reader.** After a crash, the Issues page tells you which mod is most likely to blame and offers to turn it off to test. Reads Minecraft crash reports and launch logs (missing dependencies, wrong versions, mixin errors), Stardew Valley's SMAPI log (skipped mods, errors), BepInEx logs for Valheim, and Farming Simulator's log.txt. Old crashes stop showing once you change your mods.
+- **Read crash log** button on the Issues page: open any crash report or log by hand.
+
 ## 0.13.0
 - **Cyberpunk 2077 archive conflicts:** ModTender reads the file list inside every .archive mod (including REDmods) and tells you when two mods replace the same game files, which one the game actually uses, and how many files are affected. Follows the game's real load order: modlist.txt if you have one, otherwise alphabetical, with REDmods last.
 - Damaged or incomplete .archive files are reported

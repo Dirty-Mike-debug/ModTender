@@ -41,6 +41,8 @@ class Mod:
     script_files: dict = field(default_factory=dict)  # Witcher 3: script path (lower) -> modified time
     origin: str = "local"  # local | workshop (managed by Steam)
     workshop_id: str = ""
+    loaders: list[str] = field(default_factory=list)  # Minecraft: fabric | quilt | forge | neoforge
+    mc_req: dict = field(default_factory=dict)  # Minecraft: loader -> required Minecraft versions
 
     @property
     def display_name(self) -> str:
@@ -138,6 +140,12 @@ def _apply_json_manifest(mod: Mod, data: bytes, kind: str) -> None:
     except ValueError:
         return
     if kind == "fabric":  # fabric.mod.json / quilt.mod.json
+        from .minecraft import read_fabric
+        loader, req = read_fabric(meta, "quilt_loader" in meta)
+        if loader not in mod.loaders:
+            mod.loaders.append(loader)
+        if req:
+            mod.mc_req[loader] = req
         if "quilt_loader" in meta:
             meta = meta["quilt_loader"] | meta["quilt_loader"].get("metadata", {})
         mod.mod_id = mod.mod_id or str(meta.get("id", ""))
@@ -162,14 +170,16 @@ def _apply_json_manifest(mod: Mod, data: bytes, kind: str) -> None:
                     mod.dependencies.append(uid)
 
 
-def _apply_mods_toml(mod: Mod, data: bytes) -> None:  # Forge / NeoForge
+def _apply_mods_toml(mod: Mod, data: bytes, neo_file: bool = False) -> None:  # Forge / NeoForge
     """Read the mod's own entry from the [[mods]] table. The file also lists dependencies
     (each with its own modId), which must not be mistaken for this mod's id."""
     text = data.decode("utf-8", errors="ignore")
     entry: dict = {}
+    parsed = None
     try:
         import tomllib  # Python 3.11+
-        mods = tomllib.loads(text).get("mods") or []
+        parsed = tomllib.loads(text)
+        mods = parsed.get("mods") or []
         entry = mods[0] if mods and isinstance(mods[0], dict) else {}
     except Exception:
         # Fallback: only look inside the first [[mods]] block.
@@ -179,6 +189,12 @@ def _apply_mods_toml(mod: Mod, data: bytes) -> None:  # Forge / NeoForge
                 km = re.search(rf'^\s*{key}\s*=\s*"([^"]*)"', m.group(1), re.M)
                 if km:
                     entry[key] = km.group(1)
+    from .minecraft import read_toml
+    loader, req = read_toml(parsed, text, neo_file)
+    if loader not in mod.loaders:
+        mod.loaders.append(loader)
+    if req:
+        mod.mc_req[loader] = req
     for attr, key in (("mod_id", "modId"), ("version", "version"), ("title", "displayName")):
         value = str(entry.get(key, "") or "")
         if value and "${" not in value and not getattr(mod, attr):
@@ -202,7 +218,7 @@ def _apply_meta(mod: Mod, member: str, data: bytes) -> None:
     elif kind == "json":
         _apply_json_manifest(mod, data, sub)
     else:
-        _apply_mods_toml(mod, data)
+        _apply_mods_toml(mod, data, neo_file=member.lower().startswith("meta-inf/neoforge"))
 
 
 def _inspect_archive(mod: Mod, deep: bool) -> None:

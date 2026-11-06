@@ -305,14 +305,27 @@ def analyze(scan: ScanResult) -> list[Issue]:
         elif gdef.id == "cyberpunk":
             from .cyberpunk import analyze_cyberpunk
             found = analyze_cyberpunk(game.mods_dir)
+        elif gdef.id == "minecraft":
+            from .minecraft import analyze_minecraft
+            found = analyze_minecraft(scan.mods, game.mods_dir)
     except Exception as exc:  # never let one game's special check break the whole scan
         from .log import log
         log.warning("[%s] Load-order check failed: %s", game.id, exc)
+    try:
+        from .crashlogs import latest_report, as_issue_dict
+        report = latest_report(game, scan.mods)
+        if report:
+            found.append(as_issue_dict(report))
+    except Exception as exc:
+        from .log import log
+        log.warning("[%s] Crash log check failed: %s", game.id, exc)
     for d in found:
         url = d.get("url", "")
+        action = d.get("action") or ("open_url" if url else "")
+        params = d.get("params") or ({"url": url} if url else {})
+        label = d.get("action_label") or ("Open the Archive Conflict Checker on Nexus Mods" if url else "")
         issues.append(Issue(d["severity"], d["title"], d["detail"], d["fix"], d.get("mods", []),
-                            action="open_url" if url else "", params={"url": url} if url else {}, safe=False,
-                            action_label="Open the Archive Conflict Checker on Nexus Mods" if url else ""))
+                            action=action, params=params, safe=False, action_label=label))
 
     issues += _dependency_issues(scan, extra_copies)
 
