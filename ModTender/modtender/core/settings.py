@@ -15,6 +15,10 @@ class Settings:
     custom_games: list[dict] = field(default_factory=list)
     hidden_games: list[str] = field(default_factory=list)
     last_game: str = ""
+    theme_preset: str = "Midnight"
+    theme_overrides: dict = field(default_factory=dict)  # e.g. {"accent": "#4f8cff"}
+    check_updates_on_start: bool = False
+    update_repo: str = ""  # overrides modtender.UPDATE_REPO when set
 
     @property
     def backup_root(self):

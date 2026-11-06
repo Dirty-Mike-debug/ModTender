@@ -11,7 +11,6 @@ def main() -> int:
 
     from modtender import APP_NAME
     from modtender.ui.main_window import MainWindow
-    from modtender.ui.theme import STYLESHEET
 
     if sys.platform == "win32":
         # Give ModTender its own taskbar icon group instead of python.exe's.
@@ -24,7 +23,6 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setStyle("Fusion")
-    app.setStyleSheet(STYLESHEET)
     window = MainWindow()
     window.show()
     return app.exec()

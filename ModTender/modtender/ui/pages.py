@@ -3,31 +3,38 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
-    QAbstractItemView, QCheckBox, QComboBox, QFileDialog, QFormLayout, QGridLayout, QHBoxLayout,
-    QHeaderView, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton, QSpinBox, QSplitter,
-    QTableWidget, QTextBrowser, QVBoxLayout, QWidget,
+    QAbstractItemView, QCheckBox, QColorDialog, QComboBox, QFileDialog, QFormLayout, QGridLayout,
+    QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton,
+    QScrollArea, QSpinBox, QSplitter, QTableWidget, QTextBrowser, QVBoxLayout, QWidget,
 )
 
+from .. import __version__
 from ..core.issues import health_label, health_score
 from ..core.report import human_size
 from . import theme
-from .widgets import SortItem, StatCard
+from .widgets import HealthCard, SortItem, StatCard, divider, icon
 
 if TYPE_CHECKING:
     from .main_window import MainWindow
 
-SEVERITY_ICON = {"critical": "●  Critical", "warning": "●  Warning", "info": "●  Info"}
+SEVERITY_TEXT = {"critical": "Critical", "warning": "Warning", "info": "Note"}
 
 
-def _button(text: str, slot, primary=False, danger=False, tip="") -> QPushButton:
+def button(text: str, slot, kind: str = "", icon_name: str = "", tip: str = "") -> QPushButton:
     b = QPushButton(text)
-    if primary:
-        b.setObjectName("Primary")
-    elif danger:
-        b.setObjectName("Danger")
+    if kind:
+        b.setObjectName(kind)  # Primary | Danger | Ghost
+    if icon_name:
+        color = None
+        if kind == "Primary":
+            color = "#0b1410" if QColor(theme.ACCENT).lightness() > 150 else "#ffffff"
+        elif kind == "Danger":
+            color = theme.CRITICAL
+        b.setIcon(icon(icon_name, color))
+        b.setIconSize(QSize(15, 15))
     if tip:
         b.setToolTip(tip)
     b.clicked.connect(slot)
@@ -35,17 +42,28 @@ def _button(text: str, slot, primary=False, danger=False, tip="") -> QPushButton
     return b
 
 
-def _table(headers: list[str]) -> QTableWidget:
+def make_table(headers: list[str]) -> QTableWidget:
     t = QTableWidget(0, len(headers))
     t.setHorizontalHeaderLabels(headers)
     t.verticalHeader().setVisible(False)
+    t.verticalHeader().setDefaultSectionSize(36)
     t.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
     t.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
     t.setAlternatingRowColors(True)
     t.setShowGrid(False)
     t.setWordWrap(False)
-    t.horizontalHeader().setHighlightSections(False)
+    t.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+    h = t.horizontalHeader()
+    h.setHighlightSections(False)
+    h.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
     return t
+
+
+def severity_item(severity: str) -> SortItem:
+    order = {"critical": 0, "warning": 1, "info": 2}[severity]
+    item = SortItem(f"●  {SEVERITY_TEXT[severity]}", order)
+    item.setForeground(QColor(theme.SEVERITY_COLORS[severity]))
+    return item
 
 
 class Page(QWidget):
@@ -57,17 +75,18 @@ class Page(QWidget):
         self.setObjectName("Page")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.root = QVBoxLayout(self)
-        self.root.setContentsMargins(28, 24, 28, 20)
-        self.root.setSpacing(14)
+        self.root.setContentsMargins(32, 26, 32, 22)
+        self.root.setSpacing(16)
         head = QHBoxLayout()
+        head.setSpacing(12)
         col = QVBoxLayout()
-        col.setSpacing(2)
+        col.setSpacing(3)
         self.heading = QLabel(self.title, objectName="PageTitle")
         self.subheading = QLabel("", objectName="Muted")
+        self.subheading.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         col.addWidget(self.heading)
         col.addWidget(self.subheading)
-        head.addLayout(col)
-        head.addStretch()
+        head.addLayout(col, 1)
         self.actions = QHBoxLayout()
         self.actions.setSpacing(8)
         head.addLayout(self.actions)
@@ -84,51 +103,71 @@ class DashboardPage(Page):
 
     def __init__(self, win):
         super().__init__(win)
-        self.actions.addWidget(_button("Open mods folder", win.open_mods_folder))
-        self.actions.addWidget(_button("Export report", win.export_report,
-                                       tip="Save a text report you can share when asking for help"))
-        self.actions.addWidget(_button("Back up now", win.create_backup))
-        self.actions.addWidget(_button("Scan", win.start_scan, primary=True))
+        self.actions.addWidget(button("Open folder", win.open_mods_folder, icon_name="folder"))
+        self.actions.addWidget(button("Report", win.export_report, icon_name="report",
+                                      tip="Save a text report you can share when asking for help"))
+        self.actions.addWidget(button("Back up", win.create_backup, icon_name="save"))
+        self.actions.addWidget(button("Scan", win.start_scan, "Primary", "scan"))
 
         grid = QGridLayout()
         grid.setSpacing(14)
-        self.health = StatCard("Health")
+        self.health = HealthCard()
         self.mods = StatCard("Mods")
         self.problems = StatCard("Issues")
         self.backup = StatCard("Last backup")
-        for i, card in enumerate((self.health, self.mods, self.problems, self.backup)):
-            grid.addWidget(card, 0, i)
+        grid.addWidget(self.health, 0, 0)
+        grid.addWidget(self.mods, 0, 1)
+        grid.addWidget(self.problems, 0, 2)
+        grid.addWidget(self.backup, 0, 3)
+        grid.setColumnStretch(0, 5)
+        for c in (1, 2, 3):
+            grid.setColumnStretch(c, 4)
         self.root.addLayout(grid)
 
         row = QHBoxLayout()
         row.addWidget(QLabel("Top issues", objectName="Section"))
         row.addStretch()
-        row.addWidget(_button("View all issues", lambda: win.go("issues")))
+        row.addWidget(button("View all", lambda: win.go("issues")))
         self.root.addLayout(row)
-        self.issue_list = QListWidget()
-        self.issue_list.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
-        self.issue_list.itemDoubleClicked.connect(lambda _: win.go("issues"))
-        self.root.addWidget(self.issue_list, 1)
+        self.issue_table = make_table(["Severity", "Problem", "Affects"])
+        self.issue_table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        h = self.issue_table.horizontalHeader()
+        h.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        h.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.issue_table.cellDoubleClicked.connect(lambda *_: win.go("issues"))
+        self.empty = QLabel("", objectName="Muted")
+        self.empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.root.addWidget(self.issue_table, 1)
+        self.root.addWidget(self.empty)
+
+    def _message(self, text: str, color: str | None = None):
+        self.issue_table.hide()
+        self.empty.setText(text)
+        self.empty.setStyleSheet(f"color: {color}; font-size: 10.5pt; padding: 30px;" if color else "padding: 30px;")
+        self.empty.show()
 
     def refresh(self):
         game, scan, issues = self.win.game, self.win.scan, self.win.issues
+        self.issue_table.setRowCount(0)
         if game is None:
             self.heading.setText("Welcome to ModTender")
-            self.subheading.setText("No games found yet. Use '+ Add game' in the sidebar to pick a mods folder.")
-            for card in (self.health, self.mods, self.problems, self.backup):
-                card.set("-")
-            self.issue_list.clear()
+            self.subheading.setText("No games found yet. Use 'Add game' in the sidebar to pick a mods folder.")
+            self.health.set(None, "–")
+            for card in (self.mods, self.problems, self.backup):
+                card.set("–")
+            self._message("Add a game to get started.")
             return
         self.heading.setText(game.name)
         self.subheading.setText(str(game.mods_dir))
         if scan is None:
-            for card in (self.health, self.mods, self.problems):
-                card.set("-", "Not scanned yet")
-            self.issue_list.clear()
-            self.issue_list.addItem("Press Scan to check this game's mods.")
+            self.health.set(None, "Not scanned", "Press Scan to check your mods")
+            for card in (self.mods, self.problems):
+                card.set("–", "Not scanned yet")
+            self._message("Press Scan to check this game's mods.")
         else:
             score = health_score(issues)
-            self.health.set(f"{score}", health_label(score), theme.score_color(score))
+            self.health.set(score, health_label(score), f"Checked {scan.scanned_at:%H:%M}")
             enabled = sum(m.enabled for m in scan.mods)
             self.mods.set(str(enabled), f"enabled · {len(scan.mods) - enabled} disabled · "
                                         f"{human_size(sum(m.size for m in scan.mods if m.enabled))}")
@@ -137,17 +176,19 @@ class DashboardPage(Page):
             info = len(issues) - crit - warn
             color = theme.CRITICAL if crit else theme.WARNING if warn else theme.ACCENT
             self.problems.set(str(crit + warn), f"{crit} critical · {warn} warnings · {info} notes", color)
-            self.issue_list.clear()
             if not issues:
-                item = QListWidgetItem("✓  No problems found. Your mods look healthy.")
-                item.setForeground(QColor(theme.ACCENT))
-                self.issue_list.addItem(item)
-            for issue in issues[:8]:
-                mods = ", ".join(issue.mods[:2]) + (" …" if len(issue.mods) > 2 else "")
-                item = QListWidgetItem(f"●  {issue.title}" + (f"  —  {mods}" if mods else ""))
-                item.setForeground(QColor(theme.SEVERITY_COLORS[issue.severity]))
-                item.setToolTip(issue.detail)
-                self.issue_list.addItem(item)
+                self._message("✓  No problems found. Your mods look healthy.", theme.ACCENT)
+            else:
+                self.empty.hide()
+                self.issue_table.show()
+                for issue in issues[:10]:
+                    r = self.issue_table.rowCount()
+                    self.issue_table.insertRow(r)
+                    mods = ", ".join(issue.mods[:3]) + (" …" if len(issue.mods) > 3 else "")
+                    title = SortItem(issue.title)
+                    title.setToolTip(issue.detail)
+                    for c, item in enumerate((severity_item(issue.severity), title, SortItem(mods or "–"))):
+                        self.issue_table.setItem(r, c, item)
         last = self.win.backups[0] if self.win.backups else None
         if last:
             self.backup.set(last.created.strftime("%b %d"), last.created.strftime("%H:%M") +
@@ -164,22 +205,26 @@ class ModsPage(Page):
 
     def __init__(self, win):
         super().__init__(win)
-        self.actions.addWidget(_button("Show in Explorer", self._reveal))
-        self.actions.addWidget(_button("Disable", lambda: win.set_enabled(self.selected(), False),
-                                       tip="Moves the mod out of the game's folder. Nothing is deleted."))
-        self.actions.addWidget(_button("Enable", lambda: win.set_enabled(self.selected(), True), primary=True))
+        self.actions.addWidget(button("Show in Explorer", self._reveal, icon_name="folder"))
+        self.actions.addWidget(button("Disable", lambda: win.set_enabled(self.selected(), False),
+                                      tip="Moves the mod out of the game's folder. Nothing is deleted."))
+        self.actions.addWidget(button("Enable", lambda: win.set_enabled(self.selected(), True), "Primary"))
 
         bar = QHBoxLayout()
-        self.search = QLineEdit(placeholderText="Search mods…")
+        bar.setSpacing(8)
+        self.search = QLineEdit(placeholderText="Search by name or title")
+        self.search.addAction(icon("search", theme.MUTED), QLineEdit.ActionPosition.LeadingPosition)
+        self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(self.refresh)
         self.filter = QComboBox()
         self.filter.addItems(["All mods", "Enabled", "Disabled", "With issues"])
+        self.filter.setMinimumWidth(150)
         self.filter.currentIndexChanged.connect(self.refresh)
         bar.addWidget(self.search, 1)
         bar.addWidget(self.filter)
         self.root.addLayout(bar)
 
-        self.table = _table(self.COLS)
+        self.table = make_table(self.COLS)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         h = self.table.horizontalHeader()
         h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
@@ -219,22 +264,23 @@ class ModsPage(Page):
             r = self.table.rowCount()
             self.table.insertRow(r)
             status = "Game file" if m.protected else "Enabled" if m.enabled else "Disabled"
+            n_issues = flagged.get(m.name, 0)
             cells = [
-                SortItem(status),
+                SortItem(f"●  {status}", status),
                 SortItem(m.display_name, m.display_name.lower()),
-                SortItem(m.version or "-"),
+                SortItem(m.version or "–"),
                 SortItem(m.kind.capitalize()),
                 SortItem(human_size(m.size), m.size),
                 SortItem(m.modified.strftime("%Y-%m-%d"), m.mtime),
-                SortItem(str(flagged.get(m.name, "")) or "", flagged.get(m.name, 0)),
+                SortItem(f"⚠  {n_issues}" if n_issues else "", n_issues),
             ]
             cells[0].setForeground(QColor(theme.ACCENT if m.enabled else theme.MUTED))
             cells[1].setData(Qt.ItemDataRole.UserRole, m)
             cells[1].setToolTip(f"{m.name}\n{m.path}" + (f"\nby {m.author}" if m.author else ""))
-            if m.name in flagged:
+            if n_issues:
                 cells[6].setForeground(QColor(theme.WARNING))
             if not m.enabled:
-                for c in cells[1:]:
+                for c in cells[1:6]:
                     c.setForeground(QColor(theme.MUTED))
             for c, item in enumerate(cells):
                 self.table.setItem(r, c, item)
@@ -251,11 +297,12 @@ class IssuesPage(Page):
 
     def __init__(self, win):
         super().__init__(win)
-        self.actions.addWidget(_button("Export report", win.export_report))
-        self.actions.addWidget(_button("Show mod", self._reveal))
-        self.actions.addWidget(_button("Re-scan", win.start_scan, primary=True))
+        self.actions.addWidget(button("Report", win.export_report, icon_name="report"))
+        self.actions.addWidget(button("Show mod", self._reveal, icon_name="folder"))
+        self.actions.addWidget(button("Re-scan", win.start_scan, "Primary", "scan"))
         split = QSplitter(Qt.Orientation.Vertical)
-        self.table = _table(["Severity", "Problem", "Affects"])
+        split.setChildrenCollapsible(False)
+        self.table = make_table(["Severity", "Problem", "Affects"])
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         h = self.table.horizontalHeader()
         h.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
@@ -263,14 +310,13 @@ class IssuesPage(Page):
         h.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         self.table.itemSelectionChanged.connect(self._show_detail)
         self.detail = QTextBrowser()
-        self.detail.setOpenExternalLinks(False)
         split.addWidget(self.table)
         split.addWidget(self.detail)
-        split.setSizes([380, 200])
+        split.setSizes([380, 210])
         self.root.addWidget(split, 1)
 
     def _current(self):
-        rows = self.table.selectionModel().selectedRows() if self.table.selectionModel() else []
+        rows = self.table.selectionModel().selectedRows()
         return self.table.item(rows[0].row(), 1).data(Qt.ItemDataRole.UserRole) if rows else None
 
     def _reveal(self):
@@ -287,11 +333,14 @@ class IssuesPage(Page):
             self.detail.clear()
             return
         color = theme.SEVERITY_COLORS[issue.severity]
-        esc = lambda s: s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        esc = lambda s: s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
         self.detail.setHtml(
-            f"<h3 style='color:{color}; margin:0'>{esc(issue.title)}</h3>"
-            f"<p style='white-space:pre-wrap'>{esc(issue.detail)}</p>"
-            f"<p><b style='color:{theme.ACCENT}'>How to fix:</b> {esc(issue.fix)}</p>"
+            f"<div style='margin:6px'>"
+            f"<span style='color:{color}; font-weight:600'>{SEVERITY_TEXT[issue.severity].upper()}</span>"
+            f"<h3 style='margin:4px 0 10px 0'>{esc(issue.title)}</h3>"
+            f"<p style='color:{theme.TEXT}'>{esc(issue.detail)}</p>"
+            f"<p style='margin-top:12px'><span style='color:{theme.ACCENT}; font-weight:600'>How to fix</span><br>"
+            f"{esc(issue.fix)}</p></div>"
         )
 
     def refresh(self):
@@ -306,13 +355,11 @@ class IssuesPage(Page):
         for issue in issues:
             r = self.table.rowCount()
             self.table.insertRow(r)
-            sev = SortItem(SEVERITY_ICON[issue.severity])
-            sev.setForeground(QColor(theme.SEVERITY_COLORS[issue.severity]))
             title = SortItem(issue.title)
             title.setData(Qt.ItemDataRole.UserRole, issue)
-            affects = SortItem(", ".join(issue.mods) or "-")
+            affects = SortItem(", ".join(issue.mods) or "–")
             affects.setToolTip("\n".join(issue.mods))
-            for c, item in enumerate((sev, title, affects)):
+            for c, item in enumerate((severity_item(issue.severity), title, affects)):
                 self.table.setItem(r, c, item)
         if issues:
             self.table.selectRow(0)
@@ -325,11 +372,11 @@ class BackupsPage(Page):
 
     def __init__(self, win):
         super().__init__(win)
-        self.actions.addWidget(_button("Open backup folder", win.open_backup_folder))
-        self.actions.addWidget(_button("Delete", self._delete, danger=True))
-        self.actions.addWidget(_button("Restore", self._restore))
-        self.actions.addWidget(_button("Back up now", win.create_backup, primary=True))
-        self.table = _table(["Created", "Items", "Mods size", "Backup file"])
+        self.actions.addWidget(button("Open folder", win.open_backup_folder, icon_name="folder"))
+        self.actions.addWidget(button("Delete", self._delete, "Danger"))
+        self.actions.addWidget(button("Restore", self._restore))
+        self.actions.addWidget(button("Back up now", win.create_backup, "Primary", "save"))
+        self.table = make_table(["Created", "Items", "Mods size", "Backup file"])
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         h = self.table.horizontalHeader()
         for c in (0, 1, 2):
@@ -379,64 +426,182 @@ class BackupsPage(Page):
 
 # ---------------------------------------------------------------- Settings
 
+class ColorButton(QPushButton):
+    """A button that shows a color and opens a picker."""
+
+    def __init__(self, color: str, on_pick, title: str):
+        super().__init__()
+        self.color, self.on_pick, self.title = color, on_pick, title
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedSize(84, 28)
+        self._paint()
+        self.clicked.connect(self._pick)
+
+    def _paint(self):
+        text = "#0b1410" if QColor(self.color).lightness() > 150 else "#ffffff"
+        self.setText(self.color.upper())
+        self.setStyleSheet(f"background: {self.color}; color: {text}; border: 1px solid {theme.BORDER}; "
+                           f"border-radius: 6px; font-size: 8.5pt; padding: 0;")
+
+    def _pick(self):
+        picked = QColorDialog.getColor(QColor(self.color), self, self.title)
+        if picked.isValid():
+            self.on_pick(picked.name())
+
+
 class SettingsPage(Page):
     title = "Settings"
 
     def __init__(self, win):
         super().__init__(win)
         self._loading = True
-        self.subheading.setText("Saved automatically.")
+        self.subheading.setText("Changes are saved automatically.")
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        body = QWidget(objectName="ScrollBody")
+        self.body = QVBoxLayout(body)
+        self.body.setContentsMargins(0, 0, 12, 0)
+        self.body.setSpacing(14)
+        scroll.setWidget(body)
+        self.root.addWidget(scroll, 1)
+
+        self._build_appearance()
+        self.body.addWidget(divider())
+        self._build_general()
+        self.body.addWidget(divider())
+        self._build_games()
+        self.body.addWidget(divider())
+        self._build_updates()
+        self.body.addStretch()
+
+    # --- sections
+
+    def _section(self, title: str, hint: str = ""):
+        self.body.addWidget(QLabel(title, objectName="Section"))
+        if hint:
+            h = QLabel(hint, objectName="Muted")
+            h.setWordWrap(True)
+            self.body.addWidget(h)
+
+    def _build_appearance(self):
+        self._section("Appearance", "Pick a theme, then make any color your own.")
         form = QFormLayout()
         form.setSpacing(12)
         form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
 
+        self.preset = QComboBox()
+        self.preset.addItems(list(theme.PRESETS))
+        self.preset.setMinimumWidth(180)
+        self.preset.currentTextChanged.connect(self._preset_changed)
+        form.addRow("Theme", self.preset)
+
+        swatches = QHBoxLayout()
+        swatches.setSpacing(8)
+        for color in theme.ACCENT_SWATCHES:
+            b = QPushButton(objectName="Swatch")
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            ring = theme.TEXT if color.lower() == theme.ACCENT.lower() else "transparent"
+            b.setStyleSheet(f"QPushButton#Swatch {{ background: {color}; border: 2px solid {ring}; }}")
+            b.setToolTip(color)
+            b.clicked.connect(lambda _=False, c=color: self.win.set_theme_color("accent", c))
+            swatches.addWidget(b)
+        swatches.addStretch()
+        form.addRow("Accent color", swatches)
+        self.body.addLayout(form)
+
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(18)
+        grid.setVerticalSpacing(10)
+        for i, (key, label) in enumerate(theme.EDITABLE):
+            r, c = divmod(i, 2)
+            cell = QHBoxLayout()
+            cell.addWidget(ColorButton(getattr(theme.CURRENT, key),
+                                       lambda col, k=key: self.win.set_theme_color(k, col), f"{label} color"))
+            cell.addWidget(QLabel(label))
+            cell.addStretch()
+            grid.addLayout(cell, r, c)
+        self.body.addLayout(grid)
+
+        row = QHBoxLayout()
+        row.addWidget(button("Reset colors to theme", self.win.reset_theme_colors))
+        row.addStretch()
+        self.body.addLayout(row)
+
+    def _build_general(self):
+        self._section("Backups & scanning")
+        form = QFormLayout()
+        form.setSpacing(12)
         row = QHBoxLayout()
         self.backup_dir = QLineEdit(placeholderText="Default: %LOCALAPPDATA%\\ModTender\\backups")
         self.backup_dir.editingFinished.connect(self._save)
         row.addWidget(self.backup_dir, 1)
-        row.addWidget(_button("Browse…", self._browse))
+        row.addWidget(button("Browse…", self._browse))
         form.addRow("Backup folder", row)
-
         self.keep = QSpinBox(minimum=1, maximum=100)
+        self.keep.setFixedWidth(90)
         self.keep.valueChanged.connect(self._save)
         form.addRow("Backups to keep per game", self.keep)
-
         self.deep = QCheckBox("Deep check: verify every byte of every archive (slower, catches subtle damage)")
         self.deep.toggled.connect(self._save)
         form.addRow("Scanning", self.deep)
-        self.root.addLayout(form)
-
-        self.root.addWidget(QLabel("Games you added", objectName="Section"))
-        self.custom = QListWidget()
-        self.custom.setMaximumHeight(160)
-        self.root.addWidget(self.custom)
-        row2 = QHBoxLayout()
-        row2.addWidget(_button("+ Add game", win.add_custom_game))
-        row2.addWidget(_button("Remove selected", self._remove_custom, danger=True))
-        row2.addStretch()
-        self.root.addLayout(row2)
-
-        self.root.addWidget(QLabel("Where ModTender keeps its files", objectName="Section"))
+        self.body.addLayout(form)
         from ..core import paths
-        info = QLabel(f"Data and disabled mods: {paths.DATA_DIR}\n"
-                      "Disabled mods are moved here so the game can't see them. Enabling moves them back.",
-                      objectName="Muted")
+        info = QLabel(f"Disabled mods are parked in {paths.DATA_DIR}\\disabled so the game can't see them. "
+                      "Enabling moves them back.", objectName="Muted")
+        info.setWordWrap(True)
         info.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self.root.addWidget(info)
-        self.root.addStretch()
+        self.body.addWidget(info)
+
+    def _build_games(self):
+        self._section("Games you added")
+        self.custom = QListWidget()
+        self.custom.setMaximumHeight(150)
+        self.body.addWidget(self.custom)
+        row = QHBoxLayout()
+        row.addWidget(button("Add game", self.win.add_custom_game, icon_name="plus"))
+        row.addWidget(button("Remove selected", self._remove_custom, "Danger"))
+        row.addStretch()
+        self.body.addLayout(row)
+
+    def _build_updates(self):
+        self._section("Updates", f"You're running ModTender {__version__}.")
+        row = QHBoxLayout()
+        row.addWidget(button("Check for updates", self.win.check_for_updates, "Primary", "update"))
+        row.addStretch()
+        self.body.addLayout(row)
+        self.auto_update = QCheckBox("Check for updates when ModTender starts")
+        self.auto_update.toggled.connect(self._save)
+        self.body.addWidget(self.auto_update)
+        form = QFormLayout()
+        self.repo = QLineEdit(placeholderText="owner/repository  (GitHub)")
+        self.repo.setMaximumWidth(340)
+        self.repo.editingFinished.connect(self._save)
+        form.addRow("Release page", self.repo)
+        self.body.addLayout(form)
+
+    # --- behaviour
 
     def refresh(self):
         self._loading = True
         s = self.win.settings
+        self.preset.setCurrentText(s.theme_preset if s.theme_preset in theme.PRESETS else "Midnight")
         self.backup_dir.setText(s.backup_dir)
         self.keep.setValue(s.keep_backups)
         self.deep.setChecked(s.deep_check)
+        self.auto_update.setChecked(s.check_updates_on_start)
+        self.repo.setText(s.update_repo)
         self.custom.clear()
         for g in s.custom_games:
             item = QListWidgetItem(f"{g['name']}  —  {g['path']}")
             item.setData(Qt.ItemDataRole.UserRole, g["id"])
             self.custom.addItem(item)
         self._loading = False
+
+    def _preset_changed(self, name: str):
+        if not self._loading and name != self.win.settings.theme_preset:
+            self.win.set_theme_preset(name)
 
     def _browse(self):
         folder = QFileDialog.getExistingDirectory(self, "Choose backup folder", self.backup_dir.text())
@@ -451,6 +616,8 @@ class SettingsPage(Page):
         s.backup_dir = self.backup_dir.text().strip()
         s.keep_backups = self.keep.value()
         s.deep_check = self.deep.isChecked()
+        s.check_updates_on_start = self.auto_update.isChecked()
+        s.update_repo = self.repo.text().strip().strip("/")
         self.win.save_settings()
 
     def _remove_custom(self):

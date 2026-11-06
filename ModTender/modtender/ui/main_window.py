@@ -3,22 +3,24 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSize, Qt, QTimer, QUrl
+from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (
-    QButtonGroup, QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QMainWindow,
-    QMessageBox, QProgressBar, QPushButton, QStackedWidget, QVBoxLayout, QWidget,
+    QApplication, QButtonGroup, QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel,
+    QMainWindow, QMessageBox, QProgressBar, QPushButton, QStackedWidget, QVBoxLayout, QWidget,
 )
 
-from .. import APP_NAME, __version__
-from ..core import backups, manager
+from .. import APP_NAME, UPDATE_REPO, __version__
+from ..core import backups, manager, updates
 from ..core.games import Game, detect_games, make_custom_game_entry
 from ..core.issues import analyze
 from ..core.manager import ModActionError
 from ..core.report import build_report
-from ..core.settings import load_settings, save_settings
 from ..core.scanner import scan_game
+from ..core.settings import load_settings, save_settings
+from . import theme
 from .pages import BackupsPage, DashboardPage, IssuesPage, ModsPage, SettingsPage
-from .widgets import Task, reveal_in_explorer
+from .widgets import Task, icon, logo_pixmap, reveal_in_explorer
 
 NAV = [("dashboard", "Dashboard"), ("mods", "Mods"), ("issues", "Issues"),
        ("backups", "Backups"), ("settings", "Settings")]
@@ -27,9 +29,9 @@ NAV = [("dashboard", "Dashboard"), ("mods", "Mods"), ("issues", "Issues"),
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"{APP_NAME} {__version__}")
-        self.resize(1240, 780)
-        self.setMinimumSize(980, 620)
+        self.setWindowTitle(APP_NAME)
+        self.resize(1280, 800)
+        self.setMinimumSize(1000, 640)
 
         self.settings = load_settings()
         self.games: list[Game] = []
@@ -39,7 +41,25 @@ class MainWindow(QMainWindow):
         self.backups = []
         self._tasks: list[Task] = []
         self._busy = False
+        self.current_page = "dashboard"
 
+        self.progress = QProgressBar()
+        self.progress.setFixedWidth(200)
+        self.progress.setTextVisible(False)
+        self.progress.hide()
+        self.statusBar().addPermanentWidget(self.progress)
+
+        self.apply_theme(rebuild=False)
+        self._build_ui()
+        self.reload_games()
+        if self.settings.check_updates_on_start and self._update_repo():
+            QTimer.singleShot(1500, lambda: self.check_for_updates(quiet=True))
+
+    # ------------------------------------------------------------ layout
+
+    def _build_ui(self):
+        """(Re)build every widget. Called again after a theme change so icons pick up new colors."""
+        old = self.centralWidget()
         central = QWidget()
         layout = QHBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -54,42 +74,56 @@ class MainWindow(QMainWindow):
             self.stack.addWidget(page)
         layout.addWidget(self.stack, 1)
         self.setCentralWidget(central)
-
-        self.progress = QProgressBar()
-        self.progress.setFixedWidth(220)
-        self.progress.setTextVisible(False)
-        self.progress.hide()
-        self.statusBar().addPermanentWidget(self.progress)
-
-        self.reload_games()
-        self.go("dashboard")
-
-    # ------------------------------------------------------------ layout
+        if old is not None:
+            old.deleteLater()
+        self.setWindowIcon(QIcon(logo_pixmap(64)))
+        self._fill_game_box()
+        self.go(self.current_page)
 
     def _build_sidebar(self) -> QWidget:
         side = QWidget(objectName="Sidebar")
         side.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        side.setFixedWidth(240)
+        side.setFixedWidth(236)
         lay = QVBoxLayout(side)
-        lay.setContentsMargins(16, 22, 16, 16)
-        lay.setSpacing(6)
-        lay.addWidget(QLabel(APP_NAME, objectName="Logo"))
-        lay.addWidget(QLabel("Mod manager & safety tool", objectName="LogoSub"))
-        lay.addSpacing(18)
-        lay.addWidget(QLabel("GAME", objectName="CardTitle"))
+        lay.setContentsMargins(14, 20, 14, 14)
+        lay.setSpacing(4)
+
+        brand = QHBoxLayout()
+        brand.setSpacing(10)
+        logo = QLabel()
+        logo.setPixmap(logo_pixmap(30))
+        logo.setFixedSize(30, 30)
+        logo.setScaledContents(True)
+        brand.addWidget(logo)
+        names = QVBoxLayout()
+        names.setSpacing(0)
+        names.addWidget(QLabel(APP_NAME, objectName="Brand"))
+        names.addWidget(QLabel("Mod manager & safety tool", objectName="BrandSub"))
+        brand.addLayout(names)
+        brand.addStretch()
+        lay.addLayout(brand)
+        lay.addSpacing(22)
+
+        lay.addWidget(QLabel("GAME", objectName="SideLabel"))
         self.game_box = QComboBox()
         self.game_box.currentIndexChanged.connect(self._on_game_changed)
         lay.addWidget(self.game_box)
-        add = QPushButton("+ Add game")
+        add = QPushButton("Add game", objectName="Ghost")
+        add.setIcon(icon("plus", theme.MUTED))
+        add.setIconSize(QSize(14, 14))
+        add.setCursor(Qt.CursorShape.PointingHandCursor)
         add.clicked.connect(self.add_custom_game)
         lay.addWidget(add)
-        lay.addSpacing(18)
+        lay.addSpacing(16)
 
+        lay.addWidget(QLabel("MENU", objectName="SideLabel"))
         self.nav = QButtonGroup(self)
         self.nav.setExclusive(True)
         self.nav_buttons = {}
         for key, label in NAV:
-            b = QPushButton(label, objectName="Nav")
+            b = QPushButton(f"  {label}", objectName="Nav")
+            b.setIcon(icon(key, theme.MUTED))
+            b.setIconSize(QSize(17, 17))
             b.setCheckable(True)
             b.setCursor(Qt.CursorShape.PointingHandCursor)
             b.clicked.connect(lambda _=False, k=key: self.go(k))
@@ -97,11 +131,21 @@ class MainWindow(QMainWindow):
             self.nav_buttons[key] = b
             lay.addWidget(b)
         lay.addStretch()
-        lay.addWidget(QLabel(f"v{__version__}", objectName="LogoSub"))
+
+        upd = QPushButton("Check for updates", objectName="Ghost")
+        upd.setIcon(icon("update", theme.MUTED))
+        upd.setIconSize(QSize(14, 14))
+        upd.setCursor(Qt.CursorShape.PointingHandCursor)
+        upd.clicked.connect(lambda: self.check_for_updates())
+        lay.addWidget(upd)
+        lay.addWidget(QLabel(f"   Version {__version__}", objectName="Version"))
         return side
 
     def go(self, key: str):
-        self.nav_buttons[key].setChecked(True)
+        self.current_page = key
+        for k, b in self.nav_buttons.items():
+            b.setChecked(k == key)
+            b.setIcon(icon(k, theme.ACCENT if k == key else theme.MUTED))
         page = self.pages[key]
         page.refresh()
         self.stack.setCurrentWidget(page)
@@ -110,27 +154,59 @@ class MainWindow(QMainWindow):
         for page in self.pages.values():
             page.refresh()
 
+    # ------------------------------------------------------------ theme
+
+    def apply_theme(self, rebuild: bool = True):
+        theme.apply(QApplication.instance(), self.settings.theme_preset, self.settings.theme_overrides)
+        if rebuild:
+            # Rebuild after the current click finishes: the button that was clicked gets replaced.
+            QTimer.singleShot(0, self._build_ui)
+
+    def set_theme_preset(self, name: str):
+        self.settings.theme_preset = name
+        self.settings.theme_overrides = {k: v for k, v in self.settings.theme_overrides.items() if k == "accent"}
+        self.save_settings()
+        self.apply_theme()
+
+    def set_theme_color(self, key: str, color: str):
+        self.settings.theme_overrides[key] = color
+        self.save_settings()
+        self.apply_theme()
+
+    def reset_theme_colors(self):
+        self.settings.theme_overrides = {}
+        self.save_settings()
+        self.apply_theme()
+
     # ------------------------------------------------------------ games
 
-    def reload_games(self, select: str | None = None):
-        self.games = detect_games(self.settings.custom_games)
-        wanted = select or self.settings.last_game
+    def _fill_game_box(self):
         self.game_box.blockSignals(True)
         self.game_box.clear()
         for g in self.games:
             self.game_box.addItem(g.name, g.id)
-        idx = next((i for i, g in enumerate(self.games) if g.id == wanted), 0)
+        if self.game in self.games:
+            self.game_box.setCurrentIndex(self.games.index(self.game))
         self.game_box.blockSignals(False)
+
+    def reload_games(self, select: str | None = None):
+        self.games = detect_games(self.settings.custom_games)
+        wanted = select or self.settings.last_game
+        self.game = None
+        self._fill_game_box()
         if self.games:
+            idx = next((i for i, g in enumerate(self.games) if g.id == wanted), 0)
             self.game_box.setCurrentIndex(idx)
             self._on_game_changed(idx)
         else:
-            self.game = None
+            self.scan, self.issues, self.backups = None, [], []
             self.refresh_all()
-            self.status("No supported games found. Add one with '+ Add game'.")
+            self.status("No supported games found. Add one with 'Add game'.")
 
     def _on_game_changed(self, idx: int):
         if idx < 0 or idx >= len(self.games):
+            return
+        if self.game is self.games[idx] and self.scan is not None:
             return
         self.game = self.games[idx]
         self.scan, self.issues = None, []
@@ -147,8 +223,7 @@ class MainWindow(QMainWindow):
         name, ok = QInputDialog.getText(self, "Add game", "Name for this game:", text=Path(folder).parent.name)
         if not ok or not name.strip():
             return
-        ids = {g.id for g in self.games}
-        entry = make_custom_game_entry(name.strip(), folder, ids)
+        entry = make_custom_game_entry(name.strip(), folder, {g.id for g in self.games})
         self.settings.custom_games.append(entry)
         self.save_settings()
         self.reload_games(select=entry["id"])
@@ -161,7 +236,7 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------ background work
 
-    def _run(self, label: str, fn, *args, on_done=None):
+    def _run(self, label: str, fn, *args, on_done=None, on_fail=None):
         if self._busy:
             self.status("Please wait for the current task to finish.")
             return
@@ -185,13 +260,15 @@ class MainWindow(QMainWindow):
 
         def fail(message):
             finish()
+            if on_fail:
+                return on_fail(message)
             self.status("Something went wrong.")
             QMessageBox.critical(self, APP_NAME, message.split("\n\n")[0] + "\n\n" + message[-1500:])
 
-        # Queued so these always run on the UI thread, never the worker thread.
-        task.progress.connect(lambda p, m: (self.progress.setValue(p), self.status(m)), Qt.ConnectionType.QueuedConnection)
-        task.done.connect(ok, Qt.ConnectionType.QueuedConnection)
-        task.failed.connect(fail, Qt.ConnectionType.QueuedConnection)
+        queued = Qt.ConnectionType.QueuedConnection  # always handle results on the UI thread
+        task.progress.connect(lambda p, m: (self.progress.setValue(p), self.status(m)), queued)
+        task.done.connect(ok, queued)
+        task.failed.connect(fail, queued)
         task.start()
 
     def start_scan(self):
@@ -208,6 +285,48 @@ class MainWindow(QMainWindow):
             self.status(f"Scanned {len(scan.mods)} mods · {len(self.issues)} issues")
 
         self._run(f"Scanning {game.name}…", scan_game, game, self.settings.deep_check, on_done=done)
+
+    # ------------------------------------------------------------ updates
+
+    def _update_repo(self) -> str:
+        return self.settings.update_repo or UPDATE_REPO
+
+    def check_for_updates(self, quiet: bool = False):
+        repo = self._update_repo()
+        if not repo:
+            if not quiet:
+                QMessageBox.information(
+                    self, "Check for updates",
+                    f"You're running ModTender {__version__}.\n\n"
+                    "Update checking isn't connected to a release page yet. Once ModTender has a GitHub "
+                    "repository, enter it under Settings → Updates (for example yourname/ModTender).")
+            return
+
+        def done(info):
+            if info.newer:
+                box = QMessageBox(self)
+                box.setWindowTitle("Update available")
+                box.setText(f"ModTender {info.latest} is available. You have {info.current}.")
+                if info.notes:
+                    box.setDetailedText(info.notes)
+                get = box.addButton("Download", QMessageBox.ButtonRole.AcceptRole)
+                box.addButton("Later", QMessageBox.ButtonRole.RejectRole)
+                box.exec()
+                if box.clickedButton() is get:
+                    QDesktopServices.openUrl(QUrl(info.url))
+            else:
+                self.status(f"ModTender is up to date ({info.current}).")
+                if not quiet:
+                    QMessageBox.information(self, "Check for updates",
+                                            f"You're up to date. ModTender {info.current} is the latest version.")
+
+        def fail(message):
+            first = message.split("\n\n")[0]
+            self.status(f"Update check failed: {first}")
+            if not quiet:
+                QMessageBox.warning(self, "Check for updates", first)
+
+        self._run("Checking for updates…", updates.check_for_update, repo, on_done=done, on_fail=fail)
 
     # ------------------------------------------------------------ mod actions
 
@@ -282,6 +401,7 @@ class MainWindow(QMainWindow):
 
         def done(kept):
             self.status(f"Restored. Previous mods kept in {kept}")
+            self.scan = None
             self.start_scan()
 
         self._run("Restoring backup…", backups.restore_backup, self.game, backup, on_done=done)
