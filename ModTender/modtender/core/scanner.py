@@ -372,6 +372,8 @@ def scan_game(game: Game, deep: bool = False, progress=None) -> ScanResult:
                 mod.risky_files = [entry.name]
             if st.st_size == 0:
                 mod.corrupt = "The file is empty (0 bytes)."
+            elif st.st_size > 1_500_000_000:
+                pass  # huge base-game archives (Skyrim .bsa etc.): too slow to fingerprint, never duplicates
             else:
                 try:
                     mod.sha1 = cache.sha1(entry, st.st_size, st.st_mtime)

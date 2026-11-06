@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-06 10:20",
+  "updated": "2026-11-06 12:45",
   "kinds": {
     "official": "Official",
     "trusted": "Trusted community site",
@@ -353,6 +353,27 @@
         "Map mods often need to be in a specific order in the in-game Mod Manager. Follow the author's instructions."
       ]
     },
+    "sims4": {
+      "sources": [
+        {
+          "name": "CurseForge",
+          "kind": "trusted",
+          "url": "https://www.curseforge.com/sims4",
+          "note": "Large Sims 4 mod and custom content site with its own app for installing and updating."
+        },
+        {
+          "name": "Mod The Sims",
+          "kind": "trusted",
+          "url": "https://modthesims.info/",
+          "note": "One of the oldest Sims mod communities, with moderated uploads."
+        }
+      ],
+      "tips": [
+        "Turn on 'Enable Custom Content and Mods' and 'Script Mods Allowed' in the game's Options → Other.",
+        "Script mods (.ts4script) only load from the Mods folder or one folder below it. .package files can go up to 5 folders deep.",
+        "After every game patch, script mods often break. Check each mod's page for an update before playing."
+      ]
+    },
     "cs2": {
       "sources": [
         {
@@ -377,6 +398,76 @@
       ],
       "tips": [
         "You need a mod.io account linked in the game's Mods menu before subscribed mods download."
+      ]
+    },
+    "eldenring": {
+      "name": "Elden Ring",
+      "sources": [
+        {
+          "name": "Nexus Mods",
+          "kind": "trusted",
+          "url": "https://www.nexusmods.com/eldenring",
+          "note": "Where most Elden Ring mods are published."
+        },
+        {
+          "name": "Mod Engine 2",
+          "kind": "loader",
+          "url": "https://github.com/soulsmods/ModEngine2/releases",
+          "note": "Loads mods without changing the game's own files. Many mods need it."
+        }
+      ],
+      "tips": [
+        "Never play online with mods: Easy Anti-Cheat can ban your account. Play mods offline, or with Seamless Co-op's separate setup.",
+        "Keep a backup of your save before trying overhaul mods."
+      ]
+    },
+    "terraria": {
+      "name": "Terraria",
+      "sources": [
+        {
+          "name": "tModLoader",
+          "kind": "loader",
+          "url": "https://store.steampowered.com/app/1281930/tModLoader/",
+          "note": "Free on Steam and needed for almost all Terraria mods. It has its own in-game mod browser."
+        },
+        {
+          "name": "Steam Workshop (tModLoader)",
+          "kind": "trusted",
+          "url": "https://steamcommunity.com/app/1281930/workshop/",
+          "note": "Where tModLoader mods are published. Subscribing installs them."
+        }
+      ],
+      "tips": [
+        "tModLoader keeps separate characters and worlds, so your vanilla saves aren't touched."
+      ]
+    },
+    "lethalcompany": {
+      "name": "Lethal Company",
+      "sources": [
+        {
+          "name": "Thunderstore",
+          "kind": "trusted",
+          "url": "https://thunderstore.io/c/lethal-company/",
+          "note": "Where nearly all Lethal Company mods live. Use r2modman or the Thunderstore app to install them."
+        }
+      ],
+      "tips": [
+        "Everyone in a lobby usually needs the same mods. Share a mod-manager profile code with friends.",
+        "Game updates often break mods. Wait for the mods to update before you update the game."
+      ]
+    },
+    "satisfactory": {
+      "name": "Satisfactory",
+      "sources": [
+        {
+          "name": "Satisfactory Mod Repository (ficsit.app)",
+          "kind": "trusted",
+          "url": "https://ficsit.app/",
+          "note": "The community's official mod site, with Satisfactory Mod Manager for installing."
+        }
+      ],
+      "tips": [
+        "Use Satisfactory Mod Manager (linked from ficsit.app) instead of copying files by hand: it handles dependencies."
       ]
     },
     "custom": {

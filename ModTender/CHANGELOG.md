@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.12.0
+- **Skyrim SE and Fallout 4 load-order checks:** plugins missing a required master (which crash the game on startup), masters that are installed but turned off, masters loading after the plugins that need them, damaged plugins, the 254 / 4096 plugin limits, and plugins installed but turned off. Reads plugins.txt and each plugin's header.
+- **Baldur's Gate 3 mod list check:** mods installed but not in your mod list, and mods in the list whose file is missing (which can stop saves loading).
+- **The Sims 4** is now supported: finds your Mods folder and checks it.
+- **Get mods** now also covers The Sims 4, Elden Ring, Terraria, Lethal Company and Satisfactory.
+- Base-game files (like Skyrim.esm) are never offered as "extra copies" to disable
+- Huge base-game archives aren't fingerprinted, so first scans of Skyrim/Fallout are much faster
+- Release notes in the update window show as plain text
+
 ## 0.11.0
 - **Space-saving backups.** Each mod file is stored only once, so a new backup only takes space for mods that changed. Daily backups of a big mod folder cost almost nothing extra. Older backups still work.
 - **Automatic backups** per game (Backups page): every day or every week, and optionally whenever ModTender notices your mods changed.

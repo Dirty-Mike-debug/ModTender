@@ -39,7 +39,7 @@ def button(text: str, slot, kind: str = "", icon_name: str = "", tip: str = "") 
         b.setToolTip(tip)
     b.clicked.connect(slot)
     b.setCursor(Qt.CursorShape.PointingHandCursor)
-    b.setMinimumWidth(b.sizeHint().width())  # never squash the label ("Quarantin…")
+    b.setMinimumWidth(b.sizeHint().width() + 6)  # never squash the label ("Quarantin…")
     return b
 
 
@@ -944,6 +944,10 @@ class SourcesPage(Page):
         self.choice.setMinimumWidth(230)
         for g in KNOWN_GAMES:
             self.choice.addItem(g.name, g.id)
+        known = {g.id for g in KNOWN_GAMES}
+        for gid, entry in win.mod_sources.get("games", {}).items():
+            if gid not in known and gid != "custom" and entry.get("name"):
+                self.choice.addItem(entry["name"], gid)  # games with tips but no mod scanning yet
         self.choice.addItem("Other games", "custom")
         self.choice.currentIndexChanged.connect(lambda _: self._render())
         self.actions.addWidget(QLabel("Show for", objectName="Muted"))

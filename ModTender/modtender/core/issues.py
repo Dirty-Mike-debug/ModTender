@@ -152,7 +152,7 @@ def analyze(scan: ScanResult) -> list[Issue]:
     # instead of renaming them.
     by_hash: dict[str, list[Mod]] = defaultdict(list)
     for m in enabled:
-        if m.sha1 and not m.corrupt:
+        if m.sha1 and not m.corrupt and not m.protected:  # never touch base-game files
             by_hash[m.sha1].append(m)
     extra_copies: set[str] = set()
     dup_names: set[str] = set()
@@ -178,7 +178,7 @@ def analyze(scan: ScanResult) -> list[Issue]:
     # Different versions of the same mod
     by_key: dict[str, list[Mod]] = defaultdict(list)
     for m in enabled:
-        if m.name in extra_copies or m.corrupt:
+        if m.name in extra_copies or m.corrupt or m.protected:
             continue
         key = f"id:{m.mod_id.lower()}" if m.mod_id else f"name:{_base_name(m)}"
         if key not in ("name:", "id:"):
@@ -292,6 +292,21 @@ def analyze(scan: ScanResult) -> list[Issue]:
 
     if gdef.script_conflicts:
         issues += _script_conflicts(scan, extra_copies)
+
+    # Game-specific load-order checks
+    found = []
+    try:
+        if gdef.id in ("skyrimse", "fallout4"):
+            from .plugins import analyze_plugins
+            found = analyze_plugins(gdef.id, game.mods_dir)
+        elif gdef.id == "bg3":
+            from .bg3 import analyze_bg3
+            found = analyze_bg3(game.mods_dir)
+    except Exception as exc:  # never let one game's special check break the whole scan
+        from .log import log
+        log.warning("[%s] Load-order check failed: %s", game.id, exc)
+    for d in found:
+        issues.append(Issue(d["severity"], d["title"], d["detail"], d["fix"], d.get("mods", [])))
 
     issues += _dependency_issues(scan, extra_copies)
 

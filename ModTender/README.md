@@ -1,4 +1,4 @@
-# ModTender 0.11
+# ModTender 0.12
 
 A mod manager and safety tool for Windows. It finds your games, checks every mod for problems, explains how to fix them, and keeps backups you can restore at any time.
 
@@ -29,6 +29,8 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
   - mods that contain programs or scripts (`.exe`, `.bat`, `.ps1`…), as a safety warning
   - Farming Simulator 22/25: file names the game silently ignores, missing `modDesc.xml`, and mod packs that need unzipping
   - The Witcher 3: mod folders the game ignores, script conflicts between mods, and Script Merger results that are out of date
+  - Skyrim SE / Fallout 4: missing or turned-off masters, masters in the wrong order, damaged plugins, plugin limits
+  - Baldur's Gate 3: mods not in the mod list, and listed mods whose file is missing
   - files the game can't use (`.rar`, readmes, unfinished downloads)
 - **Fix / Fix all**: most issues can be repaired with one click. Fix all applies every safe fix in the right order and can back up your mods first. Nothing is ever deleted: removed files go to ModTender's disabled or quarantine folder (Backups → Quarantine).
 - **Missing mods**: flags mods that need another mod you don't have installed or have disabled (Farming Simulator and Stardew Valley).
@@ -41,7 +43,7 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
 
 ## Supported games out of the box
 
-Farming Simulator 25 & 22, Minecraft Java (plus CurseForge instances), Stardew Valley, Skyrim SE, Fallout 4, The Witcher 3, Cyberpunk 2077, Baldur's Gate 3, Valheim (BepInEx), RimWorld, Euro Truck Simulator 2, American Truck Simulator, Cities: Skylines II, SnowRunner. Any other game works through **Add game**, and every Steam game you have Workshop mods for is listed automatically.
+Farming Simulator 25 & 22, Minecraft Java (plus CurseForge instances), Stardew Valley, The Sims 4, Skyrim SE, Fallout 4, The Witcher 3, Cyberpunk 2077, Baldur's Gate 3, Valheim (BepInEx), RimWorld, Euro Truck Simulator 2, American Truck Simulator, Cities: Skylines II, SnowRunner. Any other game works through **Add game**, and every Steam game you have Workshop mods for is listed automatically.
 
 To add a game permanently, add a `GameDef` entry to `modtender/core/games.py`.
 

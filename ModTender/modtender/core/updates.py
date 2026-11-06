@@ -31,6 +31,15 @@ def parse_version(text: str) -> tuple[int, ...]:
     return tuple(int(n) for n in nums[:4]) or (0,)
 
 
+def _plain(markdown: str) -> str:
+    """Release notes are Markdown; show them as plain text in the update dialog."""
+    text = markdown.split("\n---")[0]  # drop the 'new install' footer
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"`([^`]*)`", r"\1", text)
+    text = re.sub(r"^\s*-\s+", "•  ", text, flags=re.M)
+    return text.strip()
+
+
 def is_app_build() -> bool:
     """True when running as the installed ModTender.exe (PyInstaller), not from Python source."""
     return bool(getattr(sys, "frozen", False))
@@ -74,7 +83,7 @@ def check_for_update(repo: str = UPDATE_REPO, progress=None) -> UpdateInfo:
         latest=latest or "?",
         newer=bool(latest) and parse_version(latest) > parse_version(__version__),
         url=data.get("html_url") or f"https://github.com/{repo}/releases",
-        notes=(data.get("body") or "").strip()[:1500],
+        notes=_plain(data.get("body") or "")[:1500],
         asset_url=asset.get("browser_download_url", ""),
         asset_size=int(asset.get("size") or 0),
     )

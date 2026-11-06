@@ -67,6 +67,8 @@ KNOWN_GAMES: tuple[GameDef, ...] = (
             steam_appid=227300),
     GameDef("ats", "American Truck Simulator", ("{documents}/American Truck Simulator/mod",), extensions=(".scs", ".zip"),
             steam_appid=270880),
+    GameDef("sims4", "The Sims 4", ("{documents}/Electronic Arts/The Sims 4/Mods",),
+            extensions=(".package", ".ts4script", ".cfg"), protected_rule=r"^Resource\.cfg$"),
     GameDef("cs2", "Cities: Skylines II", ("{locallow}/Colossal Order/Cities Skylines II/Mods",), allows_dll=True),
     GameDef("snowrunner", "SnowRunner", ("{documents}/My Games/SnowRunner/base/Mods",)),
 )
