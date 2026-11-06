@@ -363,7 +363,7 @@ def scan_game(game: Game, deep: bool = False, progress=None) -> ScanResult:
         else:
             ext = entry.suffix.lower()
             if (exts and ext not in exts) or (gdef.folders_only and origin == "local"):
-                if enabled and origin == "local":
+                if enabled and origin == "local" and not (protected and protected.match(entry.name)):
                     strays.append(entry)
                 continue
             kind = "archive" if ext in ARCHIVE_EXTS else "file"

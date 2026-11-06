@@ -302,11 +302,17 @@ def analyze(scan: ScanResult) -> list[Issue]:
         elif gdef.id == "bg3":
             from .bg3 import analyze_bg3
             found = analyze_bg3(game.mods_dir)
+        elif gdef.id == "cyberpunk":
+            from .cyberpunk import analyze_cyberpunk
+            found = analyze_cyberpunk(game.mods_dir)
     except Exception as exc:  # never let one game's special check break the whole scan
         from .log import log
         log.warning("[%s] Load-order check failed: %s", game.id, exc)
     for d in found:
-        issues.append(Issue(d["severity"], d["title"], d["detail"], d["fix"], d.get("mods", [])))
+        url = d.get("url", "")
+        issues.append(Issue(d["severity"], d["title"], d["detail"], d["fix"], d.get("mods", []),
+                            action="open_url" if url else "", params={"url": url} if url else {}, safe=False,
+                            action_label="Open the Archive Conflict Checker on Nexus Mods" if url else ""))
 
     issues += _dependency_issues(scan, extra_copies)
 

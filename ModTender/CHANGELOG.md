@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.0
+- **Cyberpunk 2077 archive conflicts:** ModTender reads the file list inside every .archive mod (including REDmods) and tells you when two mods replace the same game files, which one the game actually uses, and how many files are affected. Follows the game's real load order: modlist.txt if you have one, otherwise alphabetical, with REDmods last.
+- Damaged or incomplete .archive files are reported
+- Cyberpunk's modlist.txt is no longer flagged as a file the game can't use
+
 ## 0.12.0
 - **Skyrim SE and Fallout 4 load-order checks:** plugins missing a required master (which crash the game on startup), masters that are installed but turned off, masters loading after the plugins that need them, damaged plugins, the 254 / 4096 plugin limits, and plugins installed but turned off. Reads plugins.txt and each plugin's header.
 - **Baldur's Gate 3 mod list check:** mods installed but not in your mod list, and mods in the list whose file is missing (which can stop saves loading).
