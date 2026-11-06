@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.5.0
+- **Updates install from inside the app.** Check for updates → Update now downloads the new version, installs it and restarts ModTender. No browser needed. Your settings, backups and mods aren't touched, and the previous version is kept in case anything goes wrong.
+
 ## 0.4.0
 - New **Fix** and **Fix all** buttons: ModTender can now repair most issues for you, and offers to back up your mods first
   - Damaged mods and stray files are moved to a quarantine folder

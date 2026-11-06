@@ -21,6 +21,8 @@ class UpdateInfo:
     newer: bool
     url: str  # release page to download from
     notes: str
+    asset_url: str = ""  # direct link to the release zip, used for in-app updating
+    asset_size: int = 0
 
 
 def parse_version(text: str) -> tuple[int, ...]:
@@ -50,6 +52,7 @@ def check_for_update(repo: str = UPDATE_REPO, progress=None) -> UpdateInfo:
         raise UpdateError("The update server sent an unreadable answer.") from exc
 
     latest = str(data.get("tag_name") or data.get("name") or "").lstrip("vV")
+    asset = next((a for a in data.get("assets") or [] if str(a.get("name", "")).lower().endswith(".zip")), {})
     if progress:
         progress(100, "Update check complete")
     return UpdateInfo(
@@ -58,4 +61,6 @@ def check_for_update(repo: str = UPDATE_REPO, progress=None) -> UpdateInfo:
         newer=bool(latest) and parse_version(latest) > parse_version(__version__),
         url=data.get("html_url") or f"https://github.com/{repo}/releases",
         notes=(data.get("body") or "").strip()[:1500],
+        asset_url=asset.get("browser_download_url", ""),
+        asset_size=int(asset.get("size") or 0),
     )

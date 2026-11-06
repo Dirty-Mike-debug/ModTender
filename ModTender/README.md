@@ -1,10 +1,10 @@
-# ModTender 0.4
+# ModTender 0.5
 
 A mod manager and safety tool for Windows. It finds your games, checks every mod for problems, explains how to fix them, and keeps backups you can restore at any time.
 
 ## Updating from an older version
 
-Extract the new zip **into your existing ModTender folder** and choose *Replace the files*. Your settings, backups and disabled mods are stored separately and stay untouched.
+From 0.5 on, use **Check for updates → Update now** inside the app. For older versions, extract the new zip **into your existing ModTender folder** and choose *Replace the files*. Your settings, backups and disabled mods are stored separately and stay untouched.
 
 ## Run it
 
@@ -30,7 +30,7 @@ To run it by hand instead: `pip install -r requirements.txt` then `python main.p
 - **Missing mods**: flags mods that need another mod you don't have installed or have disabled (Farming Simulator and Stardew Valley).
 - **Backups**: a one-click snapshot of the whole mods folder. Restoring never deletes anything: your current folder is renamed to `mods.before-restore-…` first. The oldest backups are cleaned up automatically (10 per game by default).
 - **Appearance**: four built-in themes (Midnight, Graphite, Nord, Daylight), eight one-click accent colors, and a color picker for the background, sidebar, cards, borders and text. Settings → Appearance.
-- **Check for updates**: the button at the bottom of the sidebar (or Settings → Updates) checks the project's GitHub Releases page for a newer version. Set `UPDATE_REPO` in `modtender/__init__.py`, or enter the repository in Settings, once a repo exists.
+- **Updates**: *Check for updates* (bottom of the sidebar, or Settings → Updates) finds new versions on GitHub Releases. *Update now* downloads and installs it, then restarts ModTender. The previous version is kept in `.modtender-update\previous` and restored automatically if an install fails.
 - **Export report**: a plain-text summary to paste when asking for help on a forum or Discord.
 
 ## Supported games out of the box
@@ -62,6 +62,7 @@ modtender/core/         no UI code; can be tested on its own
   report.py             text report
   settings.py           JSON settings
   updates.py            GitHub Releases update check
+  self_update.py        in-app download + install
 modtender/ui/           PySide6 interface (theme, pages, main window)
 ```
 

@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import APP_NAME, UPDATE_REPO, __version__
-from ..core import backups, fixer, manager, paths, updates
+from ..core import backups, fixer, manager, paths, self_update, updates
 from ..core.games import Game, detect_games, make_custom_game_entry
 from ..core.issues import analyze
 from ..core.manager import ModActionError
@@ -54,6 +54,7 @@ class MainWindow(QMainWindow):
         self.reload_games()
         if self.settings.check_updates_on_start and self._update_repo():
             QTimer.singleShot(1500, lambda: self.check_for_updates(quiet=True))
+        QTimer.singleShot(2500, self._report_finished_update)
 
     # ------------------------------------------------------------ layout
 
@@ -306,13 +307,17 @@ class MainWindow(QMainWindow):
             if info.newer:
                 box = QMessageBox(self)
                 box.setWindowTitle("Update available")
+                box.setIcon(QMessageBox.Icon.Information)
                 box.setText(f"ModTender {info.latest} is available. You have {info.current}.")
-                if info.notes:
-                    box.setDetailedText(info.notes)
-                get = box.addButton("Download", QMessageBox.ButtonRole.AcceptRole)
+                box.setInformativeText(("What's new:\n" + info.notes) if info.notes else "")
+                auto = info.asset_url and self_update.can_self_update()
+                install = box.addButton("Update now", QMessageBox.ButtonRole.AcceptRole) if auto else None
+                page = box.addButton("View release" if auto else "Download", QMessageBox.ButtonRole.ActionRole)
                 box.addButton("Later", QMessageBox.ButtonRole.RejectRole)
                 box.exec()
-                if box.clickedButton() is get:
+                if install is not None and box.clickedButton() is install:
+                    self._install_update(info)
+                elif box.clickedButton() is page:
                     QDesktopServices.openUrl(QUrl(info.url))
             else:
                 self.status(f"ModTender is up to date ({info.current}).")
@@ -327,6 +332,38 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Check for updates", first)
 
         self._run("Checking for updates…", updates.check_for_update, repo, on_done=done, on_fail=fail)
+
+    def _install_update(self, info):
+        def downloaded(new_root):
+            QMessageBox.information(
+                self, "Installing update",
+                f"ModTender {info.latest} is downloaded.\n\nModTender will close, install the update and "
+                "open again by itself in a few seconds. Your settings, backups and mods aren't touched.")
+            try:
+                self_update.launch_installer(new_root)
+            except OSError as exc:
+                QMessageBox.warning(self, "Installing update", f"Couldn't start the installer: {exc}")
+                return
+            self.save_settings()
+            QApplication.instance().quit()
+
+        def failed(message):
+            QMessageBox.warning(self, "Update", message.split("\n\n")[0])
+
+        self._run(f"Downloading ModTender {info.latest}…", self_update.download_update, info,
+                  on_done=downloaded, on_fail=failed)
+
+    def _report_finished_update(self):
+        log = self_update.pop_update_log()
+        if not log:
+            return
+        if "UPDATE FAILED" in log:
+            QMessageBox.warning(self, "Update",
+                                "The last update couldn't be installed, so ModTender kept the previous version. "
+                                "Details:\n\n" + log[-1200:])
+        elif "update complete" in log:
+            self.status(f"Updated to ModTender {__version__}.")
+            QMessageBox.information(self, "Update", f"ModTender was updated to {__version__}.")
 
     # ------------------------------------------------------------ fixes
 
