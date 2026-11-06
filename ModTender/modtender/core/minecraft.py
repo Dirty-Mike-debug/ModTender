@@ -108,6 +108,32 @@ def _maven_ok(spec: str, mc: tuple) -> bool | None:
     return False
 
 
+def _maven_line_ok(spec: str, mc: tuple) -> bool | None:
+    """Forge/NeoForge in practice load mods built for any release of the same version line
+    (a mod saying [1.21,1.21.1) runs on 1.21.1), so only flag ranges that miss the whole line."""
+    if len(mc) < 2:
+        return _maven_ok(spec, mc)
+    line_lo, line_hi = mc[:2], (mc[0], mc[1] + 1)
+    spec = spec.strip()
+    if not spec or spec == "*":
+        return True
+    ranges = re.findall(r"([\[(])\s*([^,\])]*?)\s*(?:(,)\s*([^\])]*?))?\s*([\])])", spec)
+    if not ranges:
+        return True
+    for lo_b, lo, comma, hi, hi_b in ranges:
+        lo_v = _ver(lo) if lo else None
+        hi_v = _ver(hi) if hi else (lo_v if not comma else None)
+        if (lo and lo_v is None) or (hi and hi_v is None):
+            return None
+        if hi and re.match(r"^\d+(\.\d+)*[a-zA-Z]", hi):
+            hi_v = hi_v + (10 ** 9,)  # "1.21z" is a trick meaning "any 1.21.x"
+        below = hi_v is not None and (_cmp(hi_v, line_lo) < 0 or (_cmp(hi_v, line_lo) == 0 and (comma and hi_b == ")")))
+        above = lo_v is not None and _cmp(lo_v, line_hi) >= 0
+        if not below and not above:
+            return True
+    return False
+
+
 def _fabric_pred_ok(pred: str, mc: tuple) -> bool | None:
     m = re.match(r"^(>=|<=|>|<|=|~|\^)?\s*(.+)$", pred.strip())
     if not m:
@@ -158,7 +184,7 @@ def supports(req: str, mc_version: str) -> bool | None:
         return True
     kind, _, spec = req.partition(":")
     if kind == "maven":
-        return _maven_ok(spec, mc)
+        return _maven_line_ok(spec, mc)
     try:
         return _fabric_ok(json.loads(spec), mc)
     except ValueError:
@@ -276,8 +302,8 @@ def analyze_minecraft(mods: list, mods_dir: Path) -> list[dict]:
                 "severity": "critical",
                 "title": f"Mod{'s' if len(bad) > 1 else ''} made for a different Minecraft version",
                 "detail": f"This instance is Minecraft {mc_version}, but "
-                          f"{'these mods say they need' if len(bad) > 1 else 'this mod says it needs'} "
-                          f"another version. {name} will refuse to start with "
+                          f"{'these mods are' if len(bad) > 1 else 'this mod is'} built for "
+                          f"another Minecraft version. {name} will refuse to start with "
                           f"{'them' if len(bad) > 1 else 'it'} installed:\n{lines}{more}",
                 "fix": f"Download the version of each mod built for Minecraft {mc_version}, or turn it off.",
                 "mods": [m.name for m, _ in bad],

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.14.2
+- Fixed: Forge/NeoForge mods that list an older release of the same Minecraft line (for example "1.21 only" in a 1.21.1 pack) were wrongly reported as the wrong version. They load fine, so they're no longer flagged. Mods built for a different line (like 1.20 in a 1.21 pack) are still caught.
+
 ## 0.14.1
 - Fixed: scanning a Minecraft instance could fail with "'list' object has no attribute 'values'" when a mod lists its dependencies in an unusual way
 - A mod with unusual metadata can no longer stop a scan
