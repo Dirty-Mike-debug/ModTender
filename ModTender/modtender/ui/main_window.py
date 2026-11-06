@@ -6,12 +6,12 @@ from pathlib import Path
 from PySide6.QtCore import QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (
-    QApplication, QButtonGroup, QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel,
+    QApplication, QButtonGroup, QCheckBox, QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel,
     QMainWindow, QMessageBox, QProgressBar, QPushButton, QStackedWidget, QVBoxLayout, QWidget,
 )
 
 from .. import APP_NAME, UPDATE_REPO, __version__
-from ..core import backups, manager, updates
+from ..core import backups, fixer, manager, paths, updates
 from ..core.games import Game, detect_games, make_custom_game_entry
 from ..core.issues import analyze
 from ..core.manager import ModActionError
@@ -327,6 +327,70 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Check for updates", first)
 
         self._run("Checking for updates…", updates.check_for_update, repo, on_done=done, on_fail=fail)
+
+    # ------------------------------------------------------------ fixes
+
+    def fix_issue(self, issue):
+        if not self.game or not issue.fixable:
+            return
+        if issue.action == "search":
+            QDesktopServices.openUrl(QUrl(issue.params["url"]))
+            return
+        answer = QMessageBox.question(self, "Fix issue", f"{issue.title}\n\nModTender will: {issue.action_label}.\n\n"
+                                      "Nothing is deleted. Continue?")
+        if answer == QMessageBox.StandardButton.Yes:
+            self._apply_fixes([issue], backup=False)
+
+    def fix_all(self):
+        if not self.game:
+            return
+        todo = [i for i in self.issues if i.fixable and i.safe]
+        if not todo:
+            QMessageBox.information(self, "Fix all", "There's nothing ModTender can fix automatically right now.")
+            return
+        manual = sum(1 for i in self.issues if not (i.fixable and i.safe))
+        lines = "\n".join(f"•  {i.action_label}" for i in todo[:12]) + (f"\n•  …and {len(todo) - 12} more" if len(todo) > 12 else "")
+        box = QMessageBox(self)
+        box.setWindowTitle("Fix all")
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setText(f"ModTender will apply {len(todo)} fix(es):")
+        box.setInformativeText(lines + "\n\nNothing is deleted: removed files go to the disabled or quarantine folder."
+                               + (f"\n\n{manual} issue(s) need you to decide, so they're left alone." if manual else "")
+                               + "\n\nClose the game before continuing.")
+        check = QCheckBox("Back up my mods first (recommended)")
+        check.setChecked(self.settings.backup_before_fix)
+        box.setCheckBox(check)
+        go = box.addButton("Fix all", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        if box.clickedButton() is not go:
+            return
+        self.settings.backup_before_fix = check.isChecked()
+        self.save_settings()
+        self._apply_fixes(todo, backup=check.isChecked())
+
+    def _apply_fixes(self, issues, backup: bool):
+        game = self.game
+        root = self.settings.backup_root if backup else None
+
+        def done(result):
+            self._load_backups()
+            self.scan = None
+            self.start_scan()
+            msg = "\n".join(f"✓  {d}" for d in result.done[:20]) or "Nothing needed changing."
+            if len(result.done) > 20:
+                msg += f"\n…and {len(result.done) - 20} more"
+            if result.skipped:
+                msg += "\n\nCouldn't fix:\n" + "\n".join(f"✗  {s}" for s in result.skipped)
+            if result.backup:
+                msg += f"\n\nBackup saved first: {result.backup.name}"
+            QMessageBox.information(self, "Fixes applied", msg)
+
+        self._run("Fixing…", fixer.fix_issues, game, issues, root, on_done=done)
+
+    def open_quarantine_folder(self):
+        if self.game:
+            reveal_in_explorer(paths.quarantine_dir(self.game.id))
 
     # ------------------------------------------------------------ mod actions
 

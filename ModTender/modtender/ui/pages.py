@@ -127,6 +127,9 @@ class DashboardPage(Page):
         row = QHBoxLayout()
         row.addWidget(QLabel("Top issues", objectName="Section"))
         row.addStretch()
+        self.fix_all = button("Fix all", win.fix_all, "Primary", "fix",
+                              tip="Apply every safe automatic fix. Nothing is deleted.")
+        row.addWidget(self.fix_all)
         row.addWidget(button("View all", lambda: win.go("issues")))
         self.root.addLayout(row)
         self.issue_table = make_table(["Severity", "Problem", "Affects"])
@@ -150,6 +153,7 @@ class DashboardPage(Page):
     def refresh(self):
         game, scan, issues = self.win.game, self.win.scan, self.win.issues
         self.issue_table.setRowCount(0)
+        self.fix_all.setVisible(any(i.fixable and i.safe for i in issues))
         if game is None:
             self.heading.setText("Welcome to ModTender")
             self.subheading.setText("No games found yet. Use 'Add game' in the sidebar to pick a mods folder.")
@@ -299,16 +303,23 @@ class IssuesPage(Page):
         super().__init__(win)
         self.actions.addWidget(button("Report", win.export_report, icon_name="report"))
         self.actions.addWidget(button("Show mod", self._reveal, icon_name="folder"))
-        self.actions.addWidget(button("Re-scan", win.start_scan, "Primary", "scan"))
+        self.actions.addWidget(button("Re-scan", win.start_scan, icon_name="scan"))
+        self.fix_one = button("Fix", self._fix, icon_name="fix", tip="Apply the fix for the selected issue")
+        self.actions.addWidget(self.fix_one)
+        self.fix_all = button("Fix all", win.fix_all, "Primary", "fix",
+                              tip="Apply every safe automatic fix. Nothing is deleted.")
+        self.actions.addWidget(self.fix_all)
         split = QSplitter(Qt.Orientation.Vertical)
         split.setChildrenCollapsible(False)
-        self.table = make_table(["Severity", "Problem", "Affects"])
+        self.table = make_table(["Severity", "Problem", "Affects", "Fix"])
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         h = self.table.horizontalHeader()
         h.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         h.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        h.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         self.table.itemSelectionChanged.connect(self._show_detail)
+        self.table.cellDoubleClicked.connect(lambda *_: self._fix())
         self.detail = QTextBrowser()
         split.addWidget(self.table)
         split.addWidget(self.detail)
@@ -318,6 +329,11 @@ class IssuesPage(Page):
     def _current(self):
         rows = self.table.selectionModel().selectedRows()
         return self.table.item(rows[0].row(), 1).data(Qt.ItemDataRole.UserRole) if rows else None
+
+    def _fix(self):
+        issue = self._current()
+        if issue:
+            self.win.fix_issue(issue)
 
     def _reveal(self):
         issue = self._current()
@@ -329,6 +345,7 @@ class IssuesPage(Page):
 
     def _show_detail(self):
         issue = self._current()
+        self.fix_one.setEnabled(bool(issue and issue.fixable))
         if not issue:
             self.detail.clear()
             return
@@ -340,7 +357,13 @@ class IssuesPage(Page):
             f"<h3 style='margin:4px 0 10px 0'>{esc(issue.title)}</h3>"
             f"<p style='color:{theme.TEXT}'>{esc(issue.detail)}</p>"
             f"<p style='margin-top:12px'><span style='color:{theme.ACCENT}; font-weight:600'>How to fix</span><br>"
-            f"{esc(issue.fix)}</p></div>"
+            f"{esc(issue.fix)}</p>"
+            + (f"<p style='margin-top:12px'><span style='color:{theme.ACCENT}; font-weight:600'>The Fix button will</span><br>"
+               f"{esc(issue.action_label)}" + ("" if issue.safe else
+               f"<br><span style='color:{theme.MUTED}'>Not included in Fix all, because this one needs your judgement.</span>")
+               + "</p>" if issue.fixable else
+               f"<p style='margin-top:12px; color:{theme.MUTED}'>No automatic fix for this one. Follow the steps above.</p>")
+            + "</div>"
         )
 
     def refresh(self):
@@ -351,7 +374,10 @@ class IssuesPage(Page):
             self.subheading.setText("Scan a game to check for problems.")
             return
         crit = sum(i.severity == "critical" for i in issues)
-        self.subheading.setText(f"{len(issues)} found · {crit} critical" if issues else "No problems found.")
+        auto = sum(i.fixable and i.safe for i in issues)
+        self.fix_all.setEnabled(auto > 0)
+        self.subheading.setText(f"{len(issues)} found · {crit} critical · {auto} can be fixed automatically"
+                                if issues else "No problems found.")
         for issue in issues:
             r = self.table.rowCount()
             self.table.insertRow(r)
@@ -359,10 +385,15 @@ class IssuesPage(Page):
             title.setData(Qt.ItemDataRole.UserRole, issue)
             affects = SortItem(", ".join(issue.mods) or "–")
             affects.setToolTip("\n".join(issue.mods))
-            for c, item in enumerate((severity_item(issue.severity), title, affects)):
+            fix = SortItem("Auto-fix" if issue.fixable and issue.safe else "Fix button" if issue.fixable else "Manual",
+                           0 if issue.fixable and issue.safe else 1 if issue.fixable else 2)
+            fix.setForeground(QColor(theme.ACCENT if issue.fixable else theme.MUTED))
+            for c, item in enumerate((severity_item(issue.severity), title, affects, fix)):
                 self.table.setItem(r, c, item)
         if issues:
             self.table.selectRow(0)
+        else:
+            self.fix_one.setEnabled(False)
 
 
 # ---------------------------------------------------------------- Backups
@@ -373,6 +404,8 @@ class BackupsPage(Page):
     def __init__(self, win):
         super().__init__(win)
         self.actions.addWidget(button("Open folder", win.open_backup_folder, icon_name="folder"))
+        self.actions.addWidget(button("Quarantine", win.open_quarantine_folder, icon_name="folder",
+                                      tip="Files that Fix moved out of your mods folder"))
         self.actions.addWidget(button("Delete", self._delete, "Danger"))
         self.actions.addWidget(button("Restore", self._restore))
         self.actions.addWidget(button("Back up now", win.create_backup, "Primary", "save"))
@@ -384,7 +417,8 @@ class BackupsPage(Page):
         h.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self.root.addWidget(self.table, 1)
         note = QLabel("Restoring never deletes anything: your current mods folder is renamed to "
-                      "'mods.before-restore-…' next to the original, so you can always go back.",
+                      "'mods.before-restore-…' next to the original, so you can always go back. "
+                      "Files that Fix moves out of your mods folder go to Quarantine.",
                       objectName="Muted")
         note.setWordWrap(True)
         self.root.addWidget(note)

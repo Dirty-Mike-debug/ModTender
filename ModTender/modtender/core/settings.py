@@ -18,6 +18,7 @@ class Settings:
     theme_preset: str = "Midnight"
     theme_overrides: dict = field(default_factory=dict)  # e.g. {"accent": "#4f8cff"}
     check_updates_on_start: bool = False
+    backup_before_fix: bool = True
     update_repo: str = ""  # overrides modtender.UPDATE_REPO when set
 
     @property

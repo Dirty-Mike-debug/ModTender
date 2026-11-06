@@ -54,3 +54,10 @@ def disabled_dir(game_id: str) -> Path:
 
 def default_backup_dir() -> Path:
     return data_dir() / "backups"
+
+
+def quarantine_dir(game_id: str) -> Path:
+    """Where Fix moves damaged mods, replaced originals and stray files. Nothing is ever deleted."""
+    path = data_dir() / "quarantine" / game_id
+    path.mkdir(parents=True, exist_ok=True)
+    return path

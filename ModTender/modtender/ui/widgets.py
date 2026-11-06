@@ -59,6 +59,8 @@ _PATHS = {
     "report": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>'
               '<path d="M8 13h8"/><path d="M8 17h5"/>',
     "save": '<path d="M12 3v10"/><path d="m8 9 4 4 4-4"/><rect x="3" y="15" width="18" height="6" rx="1"/>',
+    "fix": '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3'
+           'l6.9-6.9a6 6 0 0 1 7.9-7.9z"/>',
     "plus": '<path d="M12 5v14"/><path d="M5 12h14"/>',
     "search": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     "palette": '<circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/>'

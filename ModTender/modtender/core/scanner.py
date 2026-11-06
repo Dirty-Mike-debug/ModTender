@@ -34,6 +34,9 @@ class Mod:
     corrupt: str = ""  # empty when fine, otherwise the reason
     root_files: list[str] = field(default_factory=list)
     risky_files: list[str] = field(default_factory=list)
+    dependencies: list[str] = field(default_factory=list)  # FS mod names / Stardew UniqueIDs
+    inner_zips: list[str] = field(default_factory=list)  # zips packed inside this zip (mod packs)
+    nested_root: str = ""  # folder inside the archive that holds the real mod (zipped one level too deep)
 
     @property
     def display_name(self) -> str:
@@ -106,6 +109,10 @@ def _apply_moddesc(mod: Mod, data: bytes) -> None:
         mod.title = mod.title or _xml_text(root, "title")
         mod.version = mod.version or _xml_text(root, "version")
         mod.author = mod.author or _xml_text(root, "author")
+        for dep in root.iter("dependency"):
+            name = (dep.text or "").strip()
+            if name and name not in mod.dependencies:
+                mod.dependencies.append(name)
     except ElementTree.ParseError:
         text = data.decode("utf-8", errors="ignore")
         m = re.search(r"<version>\s*([^<]+?)\s*</version>", text)
@@ -133,6 +140,14 @@ def _apply_json_manifest(mod: Mod, data: bytes, kind: str) -> None:
         mod.version = mod.version or str(meta.get("Version", ""))
         mod.title = mod.title or str(meta.get("Name", ""))
         mod.author = mod.author or str(meta.get("Author", ""))
+        deps = list(meta.get("Dependencies") or [])
+        if isinstance(meta.get("ContentPackFor"), dict):
+            deps.append({**meta["ContentPackFor"], "IsRequired": True})
+        for dep in deps:
+            if isinstance(dep, dict) and dep.get("UniqueID") and dep.get("IsRequired", True) is not False:
+                uid = str(dep["UniqueID"])
+                if uid.lower() != "smapi" and uid not in mod.dependencies:
+                    mod.dependencies.append(uid)
 
 
 def _apply_mods_toml(mod: Mod, data: bytes) -> None:  # Forge / NeoForge
@@ -173,7 +188,13 @@ def _inspect_archive(mod: Mod, deep: bool) -> None:
                     mod.corrupt = f"Damaged file inside the archive: {bad}"
             mod.root_files = sorted({n.split("/", 1)[0] for n in names if n})
             mod.risky_files = [n for n in names if Path(n).suffix.lower() in RISKY_EXTS][:20]
+            mod.inner_zips = [n for n in names if n.lower().endswith(".zip")][:200]
             lower = {n.lower(): n for n in names}
+            if "moddesc.xml" not in lower and len(mod.root_files) == 1:
+                inner = f"{mod.root_files[0]}/moddesc.xml".lower()
+                if inner in lower:  # e.g. FS25_Tractor.zip/FS25_Tractor/modDesc.xml
+                    mod.nested_root = mod.root_files[0]
+                    lower["moddesc.xml"] = lower[inner]
             for meta_name in META_FILES:
                 if meta_name in lower:
                     try:
