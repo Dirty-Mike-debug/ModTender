@@ -193,8 +193,11 @@ def launch_installer(new_root: Path) -> None:
     log.info("Starting installer, ModTender will restart")
     if is_app_build():
         # Inno Setup: silent per-user install; its [Run] entry starts ModTender again afterwards.
-        subprocess.Popen([str(new_root), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS"],
-                         close_fds=True)
+        # FORCECLOSE: older ModTender windows left open must not block the update.
+        # The setup log lets us see what happened if an update ever fails.
+        setup_log = new_root.with_suffix(".log")
+        subprocess.Popen([str(new_root), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
+                          "/FORCECLOSEAPPLICATIONS", f"/LOG={setup_log}"], close_fds=True)
         return
     script = STAGE / "install_update.py"
     script.write_text(INSTALLER, encoding="utf-8")

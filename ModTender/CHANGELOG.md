@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.2
+- In-app updates now close any other open ModTender windows first, so they can't stall the update, and keep a setup log in case something goes wrong.
+
 ## 0.10.1
 Fixes from a look at the app on a real PC:
 - Dashboard cards no longer stretch to fill the window
