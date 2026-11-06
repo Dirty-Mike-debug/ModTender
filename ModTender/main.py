@@ -81,6 +81,13 @@ def single_instance():
     sock = QLocalSocket()
     sock.connectToServer(name)
     if sock.waitForConnected(300):
+        if sys.platform == "win32":
+            # We were started by the user, so we may hand our right to come to the front to the open window.
+            try:
+                import ctypes
+                ctypes.windll.user32.AllowSetForegroundWindow(-1)  # ASFW_ANY
+            except Exception:
+                pass
         sock.write(b"show")
         sock.waitForBytesWritten(300)
         sock.disconnectFromServer()

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.3
+- Opening ModTender while it's already open now reliably brings its window to the front
+- Steam games that only show as "Steam app 123456" get their real name (looked up once from the Steam store)
+- For Workshop-only games the Dashboard says backups aren't needed, since Steam keeps those mods
+
 ## 0.10.2
 - In-app updates now close any other open ModTender windows first, so they can't stall the update, and keep a setup log in case something goes wrong.
 

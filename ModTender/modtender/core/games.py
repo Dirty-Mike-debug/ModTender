@@ -228,6 +228,10 @@ def detect_games(custom_games: list[dict] | None = None) -> list[Game]:
                 games.append(Game(f"cf-{slug}", f"Minecraft - {inst.name} (CurseForge)", mods, mc, "curseforge"))
 
     # Every other Steam game with Workshop mods gets its own entry.
+    from .steam_names import cached_name
+    for appid, (ws, name) in list(workshops.items()):
+        if name.startswith("Steam app "):
+            workshops[appid] = (ws, cached_name(appid) or name)
     for appid, (ws, name) in sorted(workshops.items(), key=lambda kv: kv[1][1].lower()):
         games.append(Game(f"steam-{appid}", f"{name} (Steam Workshop)", ws, WORKSHOP, "workshop",
                           workshop_dir=ws, steam_appid=appid))

@@ -65,6 +65,7 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(1500, lambda: self.check_for_updates(quiet=True))
         QTimer.singleShot(2500, self._report_finished_update)
         QTimer.singleShot(4000, self._refresh_sources)
+        QTimer.singleShot(5000, self._fetch_steam_names)
 
     # ------------------------------------------------------------ layout
 
@@ -524,10 +525,42 @@ class MainWindow(QMainWindow):
                             Qt.ConnectionType.QueuedConnection)
         task.start()
 
+    def _fetch_steam_names(self):
+        from ..core import steam_names
+        unknown = [g.steam_appid for g in self.games if g.name.startswith("Steam app ")]
+        if not unknown:
+            return
+        task = Task(steam_names.fetch_names, unknown, parent=self)
+        self._tasks.append(task)
+
+        def done(names):
+            if task in self._tasks:
+                self._tasks.remove(task)
+            changed = False
+            for g in self.games:
+                n = names.get(str(g.steam_appid))
+                if g.name.startswith("Steam app ") and n:
+                    g.name = f"{n} (Steam Workshop)"
+                    changed = True
+            if changed:
+                self._fill_game_box()
+                self.refresh_all()
+
+        task.done.connect(done, Qt.ConnectionType.QueuedConnection)
+        task.failed.connect(lambda _m: self._tasks.remove(task) if task in self._tasks else None,
+                            Qt.ConnectionType.QueuedConnection)
+        task.start()
+
     def bring_to_front(self):
         self.showNormal() if self.isMinimized() else self.show()
         self.raise_()
         self.activateWindow()
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                ctypes.windll.user32.SetForegroundWindow(int(self.winId()))
+            except Exception:
+                pass
 
     def open_url(self, url: str):
         QDesktopServices.openUrl(QUrl(url))

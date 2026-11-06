@@ -213,7 +213,9 @@ class DashboardPage(Page):
                     for c, item in enumerate((severity_item(issue.severity), title, SortItem(mods or "–"))):
                         self.issue_table.setItem(r, c, item)
         last = self.win.backups[0] if self.win.backups else None
-        if last:
+        if game.workshop_only:
+            self.backup.set("Not needed", "Steam keeps Workshop mods: resubscribe to get them back", theme.SUCCESS)
+        elif last:
             self.backup.set(last.created.strftime("%b %d"), last.created.strftime("%H:%M") +
                             f" · {len(self.win.backups)} saved")
         else:
