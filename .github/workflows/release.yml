@@ -1,0 +1,51 @@
+# Publishes a GitHub Release whenever the version in ModTender/modtender/__init__.py changes.
+# The release gets a ready-to-use zip, which the app's "Check for updates" button links to.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: ["ModTender/modtender/__init__.py"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' ModTender/modtender/__init__.py)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Build zip
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          find ModTender -name "__pycache__" -prune -exec rm -rf {} +
+          zip -r "ModTender-${{ steps.version.outputs.version }}.zip" ModTender -x "ModTender/.venv/*"
+
+      - name: Publish release
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          NOTES_FILE=ModTender/CHANGELOG.md
+          if [ -f "$NOTES_FILE" ]; then
+            # Notes = the section for this version in CHANGELOG.md
+            awk -v v="## $V" '$0==v{f=1;next} /^## /{f=0} f' "$NOTES_FILE" > notes.txt
+          fi
+          [ -s notes.txt ] || echo "ModTender $V" > notes.txt
+          gh release create "v$V" "ModTender-$V.zip" --title "ModTender $V" --notes-file notes.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
