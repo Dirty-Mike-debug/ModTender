@@ -1,19 +1,20 @@
-# ModTender 0.5
+# ModTender 0.6
 
 A mod manager and safety tool for Windows. It finds your games, checks every mod for problems, explains how to fix them, and keeps backups you can restore at any time.
 
 ## Updating from an older version
 
-From 0.5 on, use **Check for updates → Update now** inside the app. For older versions, extract the new zip **into your existing ModTender folder** and choose *Replace the files*. Your settings, backups and disabled mods are stored separately and stay untouched.
+Use **Check for updates → Update now** inside the app (installed app: from 0.6; script version: from 0.5). For older versions, extract the new zip **into your existing ModTender folder** and choose *Replace the files*. Your settings, backups and disabled mods are stored separately and stay untouched.
 
-## Run it
+## Install
 
-1. Install **Python 3.10 or newer** from [python.org](https://www.python.org/downloads/). During setup, tick **"Add python.exe to PATH"**.
-2. Double-click **`run.bat`**.
+Download **ModTender-Setup-<version>.exe** from [Releases](https://github.com/Dirty-Mike-debug/ModTender/releases/latest) and run it. ModTender installs for your Windows user only (no admin prompt) and adds Start menu and desktop shortcuts. Uninstall it from Windows Settings → Apps. Uninstalling leaves your settings, backups and disabled mods in `%LOCALAPPDATA%\ModTender`.
 
-The first launch sets up a private Python environment and downloads PySide6 (about 1–2 minutes). After that, it opens straight away.
+Windows SmartScreen may warn about an unrecognized app the first time, because the installer isn't code-signed yet. Click **More info → Run anyway**.
 
-To run it by hand instead: `pip install -r requirements.txt` then `python main.py`.
+### Script version (for development)
+
+Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat`. The first launch sets up a private Python environment. To build the .exe and installer yourself, run `build.bat` (needs [Inno Setup 6](https://jrsoftware.org/isinfo.php) for the installer step).
 
 ## What it does
 
@@ -52,6 +53,8 @@ To add a game permanently, add a `GameDef` entry to `modtender/core/games.py`.
 
 ```
 main.py                 entry point
+installer/ModTender.iss Inno Setup installer script
+build.bat               build the .exe + installer locally
 modtender/core/         no UI code; can be tested on its own
   games.py              game list + Steam/CurseForge detection
   scanner.py            reads mods, metadata, hashes (cached)
@@ -73,4 +76,4 @@ modtender/ui/           PySide6 interface (theme, pages, main window)
 3. Deeper conflict detection: ~~dependency checks~~ (done for FS and Stardew), files that overwrite each other
 4. Scheduled backups and automatic recovery
 5. Free vs Pro split
-6. Windows installer (PyInstaller + Inno Setup), then Steam
+6. ~~Windows installer~~ (done in 0.6), code signing, then Steam

@@ -68,14 +68,17 @@ _PATHS = {
                '-.3-.3-.4-.7-.4-1.1 0-.9.8-1.7 1.7-1.7h2a5.6 5.6 0 0 0 5.4-5.6C22 6 17.5 2 12 2z"/>',
 }
 
+# Cog with an M: the ModTender mark. {accent} follows the theme; the tile stays dark.
+GEAR_PATH = "M26.25 11.28L27.22 4.92L36.78 4.92L37.75 11.28A21.5 21.5 0 0 1 42.59 13.29L47.77 9.47L54.53 16.23L50.71 21.41A21.5 21.5 0 0 1 52.72 26.25L59.08 27.22L59.08 36.78L52.72 37.75A21.5 21.5 0 0 1 50.71 42.59L54.53 47.77L47.77 54.53L42.59 50.71A21.5 21.5 0 0 1 37.75 52.72L36.78 59.08L27.22 59.08L26.25 52.72A21.5 21.5 0 0 1 21.41 50.71L16.23 54.53L9.47 47.77L13.29 42.59A21.5 21.5 0 0 1 11.28 37.75L4.92 36.78L4.92 27.22L11.28 26.25A21.5 21.5 0 0 1 13.29 21.41L9.47 16.23L16.23 9.47L21.41 13.29A21.5 21.5 0 0 1 26.25 11.28Z"
 LOGO_SVG = (
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
-    '<rect width="32" height="32" rx="8" fill="{accent}"/>'
-    '<path d="M16 6.5 8.5 9.5v6c0 4.6 3.2 8.4 7.5 9.9 4.3-1.5 7.5-5.3 7.5-9.9v-6z" fill="none" '
-    'stroke="{on}" stroke-width="2.2" stroke-linejoin="round"/>'
-    '<path d="m12.5 16 2.5 2.5 4.5-5" fill="none" stroke="{on}" stroke-width="2.2" '
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+    '<rect width="64" height="64" rx="14" fill="#10161d"/>'
+    '<path d="' + GEAR_PATH + '" fill="{accent}"/>'
+    '<circle cx="32" cy="32" r="14.5" fill="#10161d"/>'
+    '<path d="M24.5 39.5V24.5L32 32.5L39.5 24.5V39.5" fill="none" stroke="#ffffff" stroke-width="3.6" '
     'stroke-linecap="round" stroke-linejoin="round"/></svg>'
 )
+ASSETS = Path(__file__).resolve().parents[1] / "assets"
 
 
 def _render(svg: str, size: int) -> QPixmap:
@@ -99,8 +102,13 @@ def icon(name: str, color: str | None = None, size: int = 18) -> QIcon:
 
 
 def logo_pixmap(size: int = 32) -> QPixmap:
-    on = "#0b1410" if QColor(theme.ACCENT).lightness() > 150 else "#ffffff"
-    return _render(LOGO_SVG.format(accent=theme.ACCENT, on=on), size)
+    return _render(LOGO_SVG.replace("{accent}", theme.ACCENT), size)
+
+
+def app_icon() -> QIcon:
+    """The fixed brand icon for the window and taskbar (same as the .exe icon)."""
+    ico = ASSETS / "modtender.ico"
+    return QIcon(str(ico)) if ico.exists() else QIcon(logo_pixmap(64))
 
 
 # ---------------------------------------------------------------- cards

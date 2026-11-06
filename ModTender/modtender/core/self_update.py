@@ -20,35 +20,56 @@ from pathlib import Path
 
 from .. import __version__
 from .log import log
-from .updates import UpdateError, UpdateInfo
+from .updates import UpdateError, UpdateInfo, is_app_build
+from . import paths
 
 APP_DIR = Path(__file__).resolve().parents[2]  # folder holding main.py
 STAGE = APP_DIR / ".modtender-update"
 
 
 def can_self_update() -> bool:
+    if is_app_build():
+        return True
     return (APP_DIR / "main.py").is_file() and (APP_DIR / "modtender" / "__init__.py").is_file()
 
 
-def download_update(info: UpdateInfo, progress=None) -> Path:
-    if not info.asset_url:
-        raise UpdateError("This release has no download attached.")
-    if STAGE.exists():
-        shutil.rmtree(STAGE, ignore_errors=True)
-    STAGE.mkdir(parents=True)
-    zip_path = STAGE / "update.zip"
-    req = urllib.request.Request(info.asset_url, headers={"User-Agent": f"ModTender/{__version__}"})
+def _fetch(url: str, dest: Path, label: str, expected: int, progress) -> None:
+    req = urllib.request.Request(url, headers={"User-Agent": f"ModTender/{__version__}"})
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp, open(zip_path, "wb") as out:
-            total = int(resp.headers.get("Content-Length") or info.asset_size or 0)
+        with urllib.request.urlopen(req, timeout=30) as resp, open(dest, "wb") as out:
+            total = int(resp.headers.get("Content-Length") or expected or 0)
             done = 0
             while chunk := resp.read(256 * 1024):
                 out.write(chunk)
                 done += len(chunk)
                 if progress and total:
-                    progress(done * 90 / total, f"Downloading ModTender {info.latest}… {done // 1024} KB")
+                    progress(done * 90 / total, f"{label} {done * 100 // total}%")
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        dest.unlink(missing_ok=True)
         raise UpdateError("The download failed. Check your internet connection and try again.") from exc
+    if expected and dest.stat().st_size != expected:
+        dest.unlink(missing_ok=True)
+        raise UpdateError("The download was incomplete. Please try again.")
+
+
+def download_update(info: UpdateInfo, progress=None) -> Path:
+    if not info.asset_url:
+        raise UpdateError("This release has no download for your version of ModTender.")
+    if is_app_build():
+        folder = paths.data_dir() / "updates"
+        shutil.rmtree(folder, ignore_errors=True)
+        folder.mkdir(parents=True)
+        setup = folder / f"ModTender-Setup-{info.latest}.exe"
+        _fetch(info.asset_url, setup, f"Downloading ModTender {info.latest}…", info.asset_size, progress)
+        log.info("Installer for %s downloaded to %s", info.latest, setup)
+        if progress:
+            progress(100, "Update downloaded")
+        return setup
+    if STAGE.exists():
+        shutil.rmtree(STAGE, ignore_errors=True)
+    STAGE.mkdir(parents=True)
+    zip_path = STAGE / "update.zip"
+    _fetch(info.asset_url, zip_path, f"Downloading ModTender {info.latest}…", info.asset_size, progress)
 
     if progress:
         progress(92, "Checking the download…")
@@ -170,6 +191,11 @@ finally:
 def launch_installer(new_root: Path) -> None:
     """Start the helper that finishes the update once this process exits. Call, then quit the app."""
     log.info("Starting installer, ModTender will restart")
+    if is_app_build():
+        # Inno Setup: silent per-user install; its [Run] entry starts ModTender again afterwards.
+        subprocess.Popen([str(new_root), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS"],
+                         close_fds=True)
+        return
     script = STAGE / "install_update.py"
     script.write_text(INSTALLER, encoding="utf-8")
     flags = 0

@@ -600,7 +600,11 @@ class SettingsPage(Page):
         self.body.addLayout(row)
 
     def _build_updates(self):
-        self._section("Updates", f"You're running ModTender {__version__}.")
+        from ..core.updates import is_app_build
+        kind = "the installed app" if is_app_build() else "the script version (run.bat)"
+        self._section("Updates", f"You're running ModTender {__version__}, {kind}."
+                      + ("" if is_app_build() else " ModTender is now also a regular Windows app: get "
+                         "ModTender-Setup.exe from the release page for Start menu shortcuts and no Python."))
         row = QHBoxLayout()
         row.addWidget(button("Check for updates", self.win.check_for_updates, "Primary", "update"))
         row.addWidget(button("Open log folder", self.win.open_log_folder, icon_name="folder",

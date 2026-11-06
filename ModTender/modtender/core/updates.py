@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -30,6 +31,19 @@ def parse_version(text: str) -> tuple[int, ...]:
     return tuple(int(n) for n in nums[:4]) or (0,)
 
 
+def is_app_build() -> bool:
+    """True when running as the installed ModTender.exe (PyInstaller), not from Python source."""
+    return bool(getattr(sys, "frozen", False))
+
+
+def pick_asset(assets: list[dict]) -> dict:
+    """The installer for the app build; the source zip for the script version."""
+    named = [(str(a.get("name", "")).lower(), a) for a in assets]
+    if is_app_build():
+        return next((a for n, a in named if n.endswith(".exe") and "setup" in n), {})
+    return next((a for n, a in named if n.endswith(".zip") and "portable" not in n), {})
+
+
 def check_for_update(repo: str = UPDATE_REPO, progress=None) -> UpdateInfo:
     if not repo:
         raise UpdateError("Update checking isn't connected yet: ModTender doesn't have a release page to check.")
@@ -52,7 +66,7 @@ def check_for_update(repo: str = UPDATE_REPO, progress=None) -> UpdateInfo:
         raise UpdateError("The update server sent an unreadable answer.") from exc
 
     latest = str(data.get("tag_name") or data.get("name") or "").lstrip("vV")
-    asset = next((a for a in data.get("assets") or [] if str(a.get("name", "")).lower().endswith(".zip")), {})
+    asset = pick_asset(data.get("assets") or [])
     if progress:
         progress(100, "Update check complete")
     return UpdateInfo(

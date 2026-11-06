@@ -28,6 +28,19 @@ def main() -> int:
     app.setStyle("Fusion")
     window = MainWindow()
     window.show()
+    if "--self-test" in sys.argv:
+        # Used by the release build: open the full window, then report success and quit.
+        import os
+        from PySide6.QtCore import QTimer
+
+        def finish():
+            out = os.environ.get("MODTENDER_SELFTEST_OUT")
+            if out:
+                with open(out, "w", encoding="utf-8") as fh:
+                    fh.write(f"ok {window.windowTitle()} pages={len(window.pages)} games={len(window.games)}")
+            app.quit()
+
+        QTimer.singleShot(4000, finish)
     return app.exec()
 
 

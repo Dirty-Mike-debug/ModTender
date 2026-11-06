@@ -22,7 +22,7 @@ from ..core.scanner import scan_game
 from ..core.settings import load_settings, save_settings
 from . import theme
 from .pages import BackupsPage, DashboardPage, IssuesPage, ModsPage, SettingsPage
-from .widgets import Task, icon, logo_pixmap, reveal_in_explorer
+from .widgets import Task, app_icon, icon, logo_pixmap, reveal_in_explorer
 
 NAV = [("dashboard", "Dashboard"), ("mods", "Mods"), ("issues", "Issues"),
        ("backups", "Backups"), ("settings", "Settings")]
@@ -80,7 +80,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         if old is not None:
             old.deleteLater()
-        self.setWindowIcon(QIcon(logo_pixmap(64)))
+        self.setWindowIcon(app_icon())
         self._fill_game_box()
         self.go(self.current_page)
 
@@ -343,7 +343,8 @@ class MainWindow(QMainWindow):
             QMessageBox.information(
                 self, "Installing update",
                 f"ModTender {info.latest} is downloaded.\n\nModTender will close, install the update and "
-                "open again by itself in a few seconds. Your settings, backups and mods aren't touched.")
+                "open again by itself in a few seconds. Your settings, backups and mods aren't touched."
+                + ("\n\nIf Windows asks whether to allow the installer, choose Yes." if updates.is_app_build() else ""))
             try:
                 self_update.launch_installer(new_root)
             except OSError as exc:
@@ -359,17 +360,18 @@ class MainWindow(QMainWindow):
                   on_done=downloaded, on_fail=failed)
 
     def _report_finished_update(self):
+        previous, self.settings.last_version = self.settings.last_version, __version__
+        self.save_settings()
         text = self_update.pop_update_log()
-        if not text:
-            return
-        log.info("Last update log:\n%s", text.strip())
+        if text:
+            log.info("Last update log:\n%s", text.strip())
         if "UPDATE FAILED" in text:
             QMessageBox.warning(self, "Update",
                                 "The last update couldn't be installed, so ModTender kept the previous version. "
                                 "Details:\n\n" + text[-1200:])
-        elif "update complete" in text:
+        elif previous and previous != __version__:
             self.status(f"Updated to ModTender {__version__}.")
-            QMessageBox.information(self, "Update", f"ModTender was updated to {__version__}.")
+            QMessageBox.information(self, "Update", f"ModTender was updated from {previous} to {__version__}.")
 
     # ------------------------------------------------------------ fixes
 

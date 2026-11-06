@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+- **ModTender is now a real Windows app.** Install it with **ModTender-Setup.exe**: no Python needed, Start menu and desktop shortcuts, and an uninstaller in Windows Settings → Apps. It installs just for you, so no administrator prompt.
+- **New logo:** a cog with an M in the middle. The sidebar version follows your accent color.
+- In-app updates now download and run the installer silently, then reopen ModTender.
+- "Updated to …" message after every update.
+- The script version (run.bat) still works and still updates itself.
+
 ## 0.5.1
 - **Fixed:** Minecraft (Forge/NeoForge) mods could be mistaken for "older versions" of the mods they depend on, so Fix all disabled them (for example Ad Astra, EnderDrives and CC: Tweaked in All the Mods 10). ModTender now reads only the mod's own id.
 - Fix all is more careful: when versions are matched by file name only (not by the id inside the mod), that fix is left for you to apply by hand. Farming Simulator is unaffected.

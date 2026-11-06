@@ -19,6 +19,7 @@ class Settings:
     theme_overrides: dict = field(default_factory=dict)  # e.g. {"accent": "#4f8cff"}
     check_updates_on_start: bool = False
     backup_before_fix: bool = True
+    last_version: str = ""  # version that ran last time, to say "Updated to …" once
     update_repo: str = ""  # overrides modtender.UPDATE_REPO when set
 
     @property
