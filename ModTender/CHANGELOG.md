@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.1
+- Fixed: scanning a Minecraft instance could fail with "'list' object has no attribute 'values'" when a mod lists its dependencies in an unusual way
+- A mod with unusual metadata can no longer stop a scan
+
 ## 0.14.0
 - **Minecraft: wrong loader or wrong version.** ModTender reads which mod loader (Forge, NeoForge, Fabric, Quilt) and which Minecraft versions each mod is built for, and warns about mods that won't load in your instance. For CurseForge instances it knows the exact loader and version; for other folders it works out the loader from your other mods. Understands multi-loader mods, Sinytra Connector, and NeoForge 1.20.1 loading Forge mods.
 - **Crash log reader.** After a crash, the Issues page tells you which mod is most likely to blame and offers to turn it off to test. Reads Minecraft crash reports and launch logs (missing dependencies, wrong versions, mixin errors), Stardew Valley's SMAPI log (skipped mods, errors), BepInEx logs for Valheim, and Farming Simulator's log.txt. Old crashes stop showing once you change your mods.

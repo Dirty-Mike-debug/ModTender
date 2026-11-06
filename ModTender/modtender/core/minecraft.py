@@ -35,9 +35,14 @@ def read_toml(data: dict | None, text: str, neo_file: bool) -> tuple[str, str]:
     """(loader, minecraft requirement) from mods.toml / neoforge.mods.toml."""
     deps: list[dict] = []
     if isinstance(data, dict):
-        for block in (data.get("dependencies") or {}).values():
+        raw = data.get("dependencies") or {}
+        # Usually [[dependencies.modid]] (a table of lists), but some mods write a plain [[dependencies]] list.
+        blocks = raw.values() if isinstance(raw, dict) else [raw] if isinstance(raw, list) else []
+        for block in blocks:
             if isinstance(block, list):
                 deps += [d for d in block if isinstance(d, dict)]
+            elif isinstance(block, dict):
+                deps.append(block)
     else:  # couldn't parse as TOML: pick out [[dependencies.x]] blocks by hand
         for block in re.split(r"^\s*\[\[", text, flags=re.M)[1:]:
             if block.startswith("dependencies"):

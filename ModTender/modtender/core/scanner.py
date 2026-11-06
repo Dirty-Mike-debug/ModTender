@@ -141,7 +141,10 @@ def _apply_json_manifest(mod: Mod, data: bytes, kind: str) -> None:
         return
     if kind == "fabric":  # fabric.mod.json / quilt.mod.json
         from .minecraft import read_fabric
-        loader, req = read_fabric(meta, "quilt_loader" in meta)
+        try:
+            loader, req = read_fabric(meta, "quilt_loader" in meta)
+        except Exception:
+            loader, req = ("quilt" if "quilt_loader" in meta else "fabric"), ""
         if loader not in mod.loaders:
             mod.loaders.append(loader)
         if req:
@@ -190,7 +193,10 @@ def _apply_mods_toml(mod: Mod, data: bytes, neo_file: bool = False) -> None:  # 
                 if km:
                     entry[key] = km.group(1)
     from .minecraft import read_toml
-    loader, req = read_toml(parsed, text, neo_file)
+    try:
+        loader, req = read_toml(parsed, text, neo_file)
+    except Exception:  # an unusual mods.toml must never stop the scan
+        loader, req = ("neoforge" if neo_file else "forge"), ""
     if loader not in mod.loaders:
         mod.loaders.append(loader)
     if req:
@@ -243,7 +249,7 @@ def _inspect_archive(mod: Mod, deep: bool) -> None:
                 if meta_name in lower:
                     try:
                         _apply_meta(mod, meta_name, zf.read(lower[meta_name])[:2_000_000])
-                    except (KeyError, zipfile.BadZipFile, OSError, RuntimeError):
+                    except Exception:  # one odd metadata file shouldn't stop the whole scan
                         pass
     except zipfile.BadZipFile:
         mod.corrupt = "Not a valid archive. The download is probably incomplete or damaged."
