@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.25.0
+- **Space saver** (Dashboard → More). Finds mod files stored more than once across all your games and packs (for example the same .jar in ATM10 and ATM11) and keeps just one copy on disk using hard links. Every pack still has its own normal file. Only byte-for-byte identical files on the same drive are shared; OneDrive folders and Steam Workshop items are never touched. When a launcher updates a mod later, that pack simply gets its own copy again. **Undo space saver** turns everything back into separate copies.
+
 ## 0.24.0
 - **Play button** (Dashboard). ModTender checks your mods first and warns about anything that would stop the game starting (with "Show me" or "Play anyway"), then starts the game through Steam.
 - **Crash watching.** While you play, ModTender watches the game's crash reports and logs. If the game crashes, ModTender pops up with the mod most likely to blame and a one-click "Turn off" (or Find broken mod when no single mod is named). The status bar shows "Watching … for crashes"; click it to stop.

@@ -1062,6 +1062,30 @@ class MainWindow(QMainWindow):
         elif box.clickedButton() is opened:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(report.path)))
 
+    # ------------------------------------------------------------ space saver
+
+    def open_space_saver(self):
+        from ..core import spacesaver
+        games = [g for g in self.games if not g.workshop_only]
+        if not games:
+            return
+
+        def work(progress):
+            scans = []
+            for n, g in enumerate(games):
+                progress(5 + 90 * n // len(games), f"Looking at {g.name}…")
+                try:
+                    scans.append(scan_game(g, deep=False))
+                except Exception as exc:
+                    log.warning("[%s] Space saver couldn't scan: %s", g.id, exc)
+            return spacesaver.find_shared(scans)
+
+        def found(plan):
+            from .space_dialog import SpaceDialog
+            SpaceDialog(self, plan).exec()
+
+        self._run("Looking for mod files stored more than once…", work, on_done=found)
+
     # ------------------------------------------------------------ play
 
     def play_game(self):

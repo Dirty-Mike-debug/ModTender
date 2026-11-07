@@ -144,6 +144,8 @@ class DashboardPage(Page):
             ("Match mods with a server or friend…", win.compare_mod_list, "users",
              "See what's missing or different compared with a server, a friend or a modpack"),
             ("Share my mod list…", win.share_mod_list, "save", "Save a file friends can match their mods to"),
+            ("Space saver…", win.open_space_saver, "save",
+             "Store identical mod files only once across all your games and packs"),
             None,
             ("Open mods folder", win.open_mods_folder, "folder", ""),
             ("Save report…", win.export_report, "report", "Save a text report you can share when asking for help"),

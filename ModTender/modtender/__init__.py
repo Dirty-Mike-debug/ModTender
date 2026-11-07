@@ -1,6 +1,6 @@
 """ModTender - a universal Windows mod manager and safety tool."""
 
-__version__ = "0.24.0"
+__version__ = "0.25.0"
 APP_NAME = "ModTender"
 
 # GitHub "owner/repo" whose Releases page holds ModTender downloads, e.g. "yourname/ModTender".
