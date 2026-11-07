@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.20.0
+- **Arma 3 support.** Finds your Steam Workshop mods and local @mods in the game folder, with names read from each mod's meta.cpp / mod.cpp. Warns when two mods contain the same addon (.pbo), which usually means a library like CBA is loaded twice, and when mods have no signing key (.bikey), which gets you kicked from servers that verify signatures. Crash logs (.rpt) are read too, including "addon X requires addon Y" errors.
+- **Arma Reforger support.** Finds your Workshop downloads in Documents\My Games\ArmaReforger\addons and reads each mod's name, version and dependencies from ServerData.json. Flags missing dependencies (with a link to the Reforger Workshop) and mods that didn't finish downloading. Reads Reforger's logs after a crash.
+- **Match mods** now reads Arma 3 Launcher presets (.html exports and .preset2 files) and Arma Reforger server config.json files, matching by Workshop ID or mod ID, so you can see exactly what a group or server runs that you don't.
+- Game update warnings for Arma 3 and Reforger, and both games added to Get mods.
+- Mod info files are now found regardless of capital letters in their names.
+
 ## 0.19.0
 - **Game update warnings.** ModTender notices when Steam updates one of your games and puts a warning on the Issues page: what usually breaks after a patch for that game (script extenders, BepInEx plugins, SMAPI, Cyberpunk's frameworks...), what to do about it, and which of your mods are most at risk. Dismiss it once you've checked.
 - **Heads-up when Steam has an update waiting**, so you can back up your mods before it installs.

@@ -44,6 +44,7 @@ class Mod:
     loaders: list[str] = field(default_factory=list)  # Minecraft: fabric | quilt | forge | neoforge
     mc_req: dict = field(default_factory=dict)  # Minecraft: loader -> required Minecraft versions
     requires: list[str] = field(default_factory=list)  # Minecraft: ids of mods this one needs
+    dep_names: dict = field(default_factory=dict)  # dependency id -> readable name, when the mod says
 
     @property
     def display_name(self) -> str:
@@ -161,6 +162,19 @@ def _apply_json_manifest(mod: Mod, data: bytes, kind: str) -> None:
         if isinstance(authors, list) and authors:
             first = authors[0]
             mod.author = mod.author or (first.get("name", "") if isinstance(first, dict) else str(first))
+    elif kind == "reforger":  # Arma Reforger ServerData.json
+        mod.mod_id = mod.mod_id or str(meta.get("id", ""))
+        mod.title = mod.title or str(meta.get("name", ""))
+        rev = meta.get("revision") or {}
+        mod.version = mod.version or str(rev.get("version", ""))
+        for dep in rev.get("dependencies") or []:
+            dep_id = dep.get("id", "") if isinstance(dep, dict) else str(dep)
+            if dep_id and dep_id not in mod.dependencies:
+                mod.dependencies.append(dep_id)
+                if isinstance(dep, dict) and dep.get("name"):
+                    mod.dep_names[dep_id] = str(dep["name"])
+        if rev.get("downloaded") is False and not mod.corrupt:
+            mod.corrupt = "Not fully downloaded. Open Arma Reforger's Workshop and let it finish downloading."
     else:  # Stardew SMAPI manifest.json
         mod.mod_id = mod.mod_id or str(meta.get("UniqueID", ""))
         mod.version = mod.version or str(meta.get("Version", ""))
@@ -174,6 +188,16 @@ def _apply_json_manifest(mod: Mod, data: bytes, kind: str) -> None:
                 uid = str(dep["UniqueID"])
                 if uid.lower() != "smapi" and uid not in mod.dependencies:
                     mod.dependencies.append(uid)
+
+
+def _apply_arma_cpp(mod: Mod, data: bytes) -> None:  # Arma 3 mod.cpp / meta.cpp
+    text = data.decode("utf-8", errors="ignore")
+    m = re.search(r'^\s*name\s*=\s*"([^"]+)"', text, re.M)
+    if m and not mod.title:
+        mod.title = m.group(1).strip()
+    m = re.search(r"^\s*publishedid\s*=\s*(\d+)", text, re.M)
+    if m and m.group(1) != "0" and not mod.workshop_id:
+        mod.workshop_id = m.group(1)
 
 
 def _apply_mods_toml(mod: Mod, data: bytes, neo_file: bool = False) -> None:  # Forge / NeoForge
@@ -219,6 +243,9 @@ META_FILES = {
     "meta-inf/mods.toml": ("toml", None),
     "meta-inf/neoforge.mods.toml": ("toml", None),
     "manifest.json": ("json", "smapi"),
+    "serverdata.json": ("json", "reforger"),
+    "meta.cpp": ("arma", None),
+    "mod.cpp": ("arma", None),
 }
 
 
@@ -228,6 +255,8 @@ def _apply_meta(mod: Mod, member: str, data: bytes) -> None:
         _apply_moddesc(mod, data)
     elif kind == "json":
         _apply_json_manifest(mod, data, sub)
+    elif kind == "arma":
+        _apply_arma_cpp(mod, data)
     else:
         _apply_mods_toml(mod, data, neo_file=member.lower().startswith("meta-inf/neoforge"))
 
@@ -329,12 +358,16 @@ def _inspect_folder(mod: Mod) -> None:
     mod.size, mod.risky_files = total, risky
     # Metadata may sit at the top or one folder down (common for Stardew).
     for base in [mod.path] + [p for p in mod.path.iterdir() if p.is_dir()][:5] if mod.path.is_dir() else []:
+        try:
+            present = {p.name.lower(): p for p in base.iterdir() if p.is_file()}
+        except OSError:
+            present = {}
         for meta_name in META_FILES:
-            f = base / meta_name
-            if f.is_file():
+            f = present.get(meta_name)  # match ServerData.json / serverdata.json alike
+            if f is not None:
                 try:
                     _apply_meta(mod, meta_name, f.read_bytes()[:2_000_000])
-                except OSError:
+                except (OSError, ValueError):
                     pass
         if mod.title or mod.mod_id:
             break
@@ -373,6 +406,8 @@ def scan_game(game: Game, deep: bool = False, progress=None) -> ScanResult:
             progress(i * 100 / total, f"Checking {entry.name}")
         if entry.name.startswith(".") or entry.name.lower() in {"desktop.ini", "thumbs.db"}:
             continue
+        if gdef.folder_prefix and origin == "local" and not entry.name.startswith(gdef.folder_prefix):
+            continue  # e.g. Arma 3's own folders next to its @mods
         try:
             st = entry.stat()
         except OSError:

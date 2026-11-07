@@ -16,6 +16,8 @@ UNSUPPORTED = {
     "rimworld": "RimWorld would drop the missing mods from its active mod list",
     "ets2": "the game would drop the missing mods from your profile",
     "ats": "the game would drop the missing mods from your profile",
+    "arma3": "Arma 3 loads the mods you tick in the Arma 3 Launcher, not whatever is in its folder",
+    "reforger": "Arma Reforger manages its mods in its own Workshop menu and would download missing ones again",
 }
 
 
@@ -23,7 +25,7 @@ def unsupported_reason(game) -> str:
     if getattr(game, "workshop_only", False):
         return "Steam Workshop mods can only be turned off in Steam."
     why = UNSUPPORTED.get(game.definition.id)
-    return (f"This isn't available for {game.name} yet: {why}. Use the game's own mod manager "
+    return (f"This isn't available for {game.name} yet: {why}. Use the game's own launcher or mod manager "
             "to turn mods off in halves instead.") if why else ""
 
 

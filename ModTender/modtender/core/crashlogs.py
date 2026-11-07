@@ -61,6 +61,16 @@ def find_logs(game) -> list[Path]:
         found += [mods.parent / "LogOutput.log", paths.LOCALLOW / "IronGate" / "Valheim" / "Player.log"]
     elif gid in ("fs25", "fs22"):
         found.append(mods.parent / "log.txt")
+    elif gid == "arma3":
+        found += (paths.LOCALAPPDATA / "Arma 3").glob("*.rpt")
+    elif gid == "reforger":
+        logs = paths.DOCUMENTS / "My Games" / "ArmaReforger" / "logs"
+        try:
+            newest = sorted((d for d in logs.iterdir() if d.is_dir()), key=lambda d: d.stat().st_mtime)[-1:]
+        except OSError:
+            newest = []
+        for d in newest:
+            found += [d / "error.log", d / "console.log", d / "crash.log"]
     return sorted((p for p in found if p.is_file()), key=lambda p: p.stat().st_mtime, reverse=True)
 
 
@@ -105,6 +115,8 @@ def analyze_log(path: Path, mods: list) -> CrashReport | None:
         report = _minecraft_crash(path, text, when)
     elif name.startswith("hs_err_pid"):
         report = _java_crash(path, text, when)
+    elif name.endswith(".rpt") or "requires addon" in text[:200000]:
+        report = _arma3(path, text, when)
     elif "[SMAPI]" in text[:20000] or name.startswith("smapi-"):
         report = _smapi(path, text, when)
     elif re.search(r"^\[(Info|Message|Error|Warning|Fatal|Debug)\s*:", text[:20000], re.M):
@@ -214,6 +226,19 @@ def _smapi(path: Path, text: str, when: datetime) -> CrashReport:
     summary = "Stardew Valley crashed" if crashed else "Errors in the last Stardew Valley session"
     return CrashReport(path, "crash" if crashed else "log", when, summary, _ranked(suspects),
                        _excerpt(text, r"(ERROR|ALERT)\s"))
+
+
+def _arma3(path: Path, text: str, when: datetime) -> CrashReport:
+    suspects: dict[str, Suspect] = {}
+    for m in re.finditer(r"Addon '([\w-]+)' requires addon '([\w-]+)'", text):
+        needs, missing = m.groups()
+        _add(suspects, needs.split("_")[0], f"its addon {needs} needs {missing}, which isn't loaded")
+    for m in re.finditer(r"Cannot load (?:texture|model|sound|file) ([^\s.]+[\\/][^\s]+)", text, re.I):
+        _add(suspects, re.split(r"[\\/]", m.group(1).lstrip("\\/"))[0], "a file it needs couldn't be loaded")
+    crashed = bool(re.search(r"Exception code:|ACCESS_VIOLATION|STATUS_ACCESS", text))
+    return CrashReport(path, "crash" if crashed else "log", when,
+                       "Arma 3 crashed" if crashed else "Errors in the last Arma 3 session",
+                       _ranked(suspects), _excerpt(text, r"(requires addon|Exception code|Cannot load|Error)"))
 
 
 def _bepinex(path: Path, text: str, when: datetime) -> CrashReport:

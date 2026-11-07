@@ -5,6 +5,8 @@ Lists ModTender can read:
   - Farming Simulator: a dedicated server's stats feed (dedicated-server-stats.xml, from a file or the
     server's link) and a savegame's careerSavegame.xml,
   - Minecraft: Modrinth modpacks (.mrpack / modrinth.index.json), which also say where to download,
+  - Arma 3: Arma 3 Launcher presets (.html export, or .preset2 from the launcher's folder),
+  - Arma Reforger: a server's config.json ("mods": [{"modId", "name", "version"}]),
   - plain text: one mod name or file name per line (for example copied from a server's mods page).
 Mods are matched by file hash where both sides have one, then by mod id, then by name."""
 from __future__ import annotations
@@ -128,8 +130,17 @@ def _parse_text(text: str, label: str) -> ModList:
             return _setup(data, label)
         if "files" in data and data.get("game") == "minecraft":
             return _mrpack(data, label)
+        reforger = (data.get("game") or {}).get("mods") if isinstance(data.get("game"), dict) else data.get("mods")
+        if isinstance(reforger, list) and any(isinstance(m, dict) and m.get("modId") for m in reforger):
+            mods = [ListedMod(str(m.get("name") or m["modId"]), str(m.get("name") or ""), str(m["modId"]),
+                              str(m.get("version") or "")) for m in reforger if isinstance(m, dict) and m.get("modId")]
+            name = (data.get("game") or {}).get("name") if isinstance(data.get("game"), dict) else ""
+            return ModList(f"{len(mods)} mods from the server config{f' {name}' if name else ''} ({label})",
+                           "reforger", mods)
         raise ListError("ModTender doesn't recognise this JSON file. It reads ModTender setup files and "
                         "Modrinth modpacks.")
+    if stripped.startswith("<") and 'data-type="ModContainer"' in stripped:
+        return _arma_html(stripped, label)
     if stripped.startswith("<"):
         return _xml(stripped, label)
     names = []
@@ -166,12 +177,40 @@ def _mrpack(index: dict, label: str) -> ModList:
                    "minecraft", mods, str(deps.get("minecraft", "")), loader)
 
 
+def _arma_html(text: str, label: str) -> ModList:
+    """An Arma 3 Launcher preset exported as HTML."""
+    import html
+    mods = []
+    for row in re.findall(r'<tr[^>]*data-type="ModContainer"[^>]*>(.*?)</tr>', text, re.S | re.I):
+        name = re.search(r'data-type="DisplayName"[^>]*>(.*?)</td>', row, re.S)
+        link = re.search(r"filedetails/\?id=(\d+)", row)
+        title = html.unescape(re.sub(r"<[^>]+>", "", name.group(1))).strip() if name else ""
+        if title or link:
+            mods.append(ListedMod(title or link.group(1), title, workshop_id=link.group(1) if link else ""))
+    preset = re.search(r'<meta name="arma:PresetName" content="([^"]*)"', text)
+    if not mods:
+        raise ListError("That Arma 3 preset has no mods in it.")
+    return ModList(f"{len(mods)} mods from the Arma 3 preset"
+                   f"{f' {html.unescape(preset.group(1))}' if preset else ''} ({label})", "arma3", mods)
+
+
 def _xml(text: str, label: str) -> ModList:
     try:
         root = ElementTree.fromstring(text)
     except ElementTree.ParseError:
         raise ListError("That XML file couldn't be read.") from None
     mods = []
+    if root.tag.lower() == "addons-presets":  # Arma 3 Launcher .preset2 file
+        for el in root.iter("id"):
+            value = (el.text or "").strip()
+            if value.startswith("steam:"):
+                mods.append(ListedMod(value[6:], workshop_id=value[6:]))
+            elif value.startswith("local:"):
+                mods.append(ListedMod(Path(value[6:].rstrip("\\/").replace("\\", "/")).name))
+        if mods:
+            name = root.findtext("name") or ""
+            return ModList(f"{len(mods)} mods from the Arma 3 preset{f' {name}' if name else ''} ({label})",
+                           "arma3", mods)
     for el in root.iter():
         tag = el.tag.lower()
         if tag == "mod" and el.get("name"):  # dedicated-server-stats.xml: <Mod name="FS25_x" version="..">Title</Mod>
@@ -205,6 +244,7 @@ def _norm(text: str) -> str:
 def compare(mod_list: ModList, mods: list) -> Comparison:
     installed = [m for m in mods if not m.protected]
     by_sha = {m.sha1.lower(): m for m in installed if m.sha1}
+    by_workshop = {m.workshop_id: m for m in installed if m.workshop_id}
     by_name = {m.name.lower(): m for m in installed}
     by_stem = {Path(m.name).stem.lower(): m for m in installed}
     by_id = {m.mod_id.lower(): m for m in installed if m.mod_id}
@@ -217,7 +257,8 @@ def compare(mod_list: ModList, mods: list) -> Comparison:
     used = set()
     missing, off, other, same = [], [], [], []
     for item in mod_list.mods:
-        mod = (by_sha.get(item.sha1.lower()) if item.sha1 else None) \
+        mod = (by_workshop.get(item.workshop_id) if item.workshop_id else None) \
+            or (by_sha.get(item.sha1.lower()) if item.sha1 else None) \
             or by_name.get(item.name.lower()) or by_stem.get(Path(item.name).stem.lower()) \
             or by_stem.get(item.name.lower()) \
             or (by_id.get(item.mod_id.lower()) if item.mod_id else None) \
@@ -314,12 +355,15 @@ def download_missing(game, items: list[ListedMod], progress=None) -> tuple[list[
 
 def search_url(game, item: ListedMod) -> str:
     import urllib.parse
-    q = urllib.parse.quote(item.title or re.sub(r"^FS2\d_", "", Path(item.name).stem))
-    gid = game.definition.id
+    from .issues import SEARCH_URLS
     if item.workshop_id:
         return f"https://steamcommunity.com/sharedfiles/filedetails/?id={item.workshop_id}"
-    if gid in ("fs25", "fs22"):
-        return f"https://www.farming-simulator.com/mods.php?title={gid}&searchMod={q}"
+    gid = game.definition.id
+    if gid == "reforger" and item.mod_id:
+        return f"https://reforger.armaplatform.com/workshop/{item.mod_id}"
+    q = urllib.parse.quote(item.title or re.sub(r"^FS2\d_", "", Path(item.name).stem))
+    if gid in SEARCH_URLS:
+        return SEARCH_URLS[gid].format(q=q)
     if gid == "minecraft":
         return f"https://modrinth.com/mods?q={q}"
     return f"https://www.nexusmods.com/search?keyword={q}"

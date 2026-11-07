@@ -1,4 +1,4 @@
-# ModTender 0.19
+# ModTender 0.20
 
 A mod manager and safety tool for Windows. It finds your games, checks every mod for problems, explains how to fix them, and keeps backups you can restore at any time.
 
@@ -32,6 +32,7 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
   - Skyrim SE / Fallout 4: missing or turned-off masters, masters in the wrong order, damaged plugins, plugin limits
   - Cyberpunk 2077: archive mods that overwrite each other's files, and which one wins
   - Minecraft: mods built for a different mod loader or Minecraft version
+  - Arma 3: two mods shipping the same addon, mods without signing keys; Arma Reforger: missing dependencies and unfinished downloads
   - Crash logs: names the mod most likely behind a crash (Minecraft, Stardew Valley, Valheim, Farming Simulator)
   - Baldur's Gate 3: mods not in the mod list, and listed mods whose file is missing
   - files the game can't use (`.rar`, readmes, unfinished downloads)
@@ -54,7 +55,7 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
 
 ## Supported games out of the box
 
-Farming Simulator 25 & 22, Minecraft Java (plus CurseForge instances), Stardew Valley, The Sims 4, Skyrim SE, Fallout 4, The Witcher 3, Cyberpunk 2077, Baldur's Gate 3, Valheim (BepInEx), RimWorld, Euro Truck Simulator 2, American Truck Simulator, Cities: Skylines II, SnowRunner. Any other game works through **Add game**, and every Steam game you have Workshop mods for is listed automatically.
+Farming Simulator 25 & 22, Minecraft Java (plus CurseForge instances), Stardew Valley, The Sims 4, Skyrim SE, Fallout 4, The Witcher 3, Cyberpunk 2077, Baldur's Gate 3, Valheim (BepInEx), RimWorld, Euro Truck Simulator 2, American Truck Simulator, Cities: Skylines II, SnowRunner, Arma 3, Arma Reforger. Any other game works through **Add game**, and every Steam game you have Workshop mods for is listed automatically.
 
 To add a game permanently, add a `GameDef` entry to `modtender/core/games.py`.
 

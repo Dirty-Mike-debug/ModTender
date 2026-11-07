@@ -15,14 +15,19 @@ from . import theme
 from .pages import button, make_table
 
 INTRO = ("Open the mod list you want to match: a setup file a friend shared from ModTender, a Farming "
-         "Simulator server's stats file or link, a savegame's careerSavegame.xml, or a Modrinth modpack "
-         "(.mrpack). You can also paste a plain list of mod names.")
+         "Simulator server's stats file or link, a savegame's careerSavegame.xml, a Modrinth modpack (.mrpack), "
+         "an Arma 3 Launcher preset (.html) or an Arma Reforger server's config.json. You can also paste a plain "
+         "list of mod names.")
 
 NOTES = {
     "fs25": "Extra mods don't stop you joining a Farming Simulator server: the game only loads the ones the "
             "server uses. Missing mods and different versions do.",
     "fs22": "Extra mods don't stop you joining a Farming Simulator server: the game only loads the ones the "
             "server uses. Missing mods and different versions do.",
+    "arma3": "Load exactly the server's mods in the Arma 3 Launcher. Extra mods can get you kicked if the server "
+             "checks signatures, and missing ones stop you joining.",
+    "reforger": "Reforger downloads a server's mods when you join. Compare here if that fails or a server says "
+                "your mods don't match.",
     "minecraft": "Mods that add blocks, items or mobs must match the server exactly. Extra client-only mods "
                  "(minimaps, shaders, performance mods) are usually fine.",
 }
@@ -69,7 +74,7 @@ class CompareDialog(QDialog):
     def _open_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self, "Open a mod list", str(Path.home() / "Downloads"),
-            "Mod lists (*.modtender *.json *.xml *.mrpack *.txt);;All files (*)")
+            "Mod lists (*.modtender *.json *.xml *.mrpack *.html *.preset2 *.txt);;All files (*)")
         if path:
             self._load(lambda: modlist.read_list(path))
 
@@ -224,4 +229,4 @@ class CompareDialog(QDialog):
 def _same_game(listed: str, current: str) -> bool:
     if listed == current:
         return True
-    return listed == "fs" and current in ("fs25", "fs22")
+    return (listed == "fs" and current in ("fs25", "fs22")) or listed == "custom"

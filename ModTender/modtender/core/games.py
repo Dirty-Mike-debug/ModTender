@@ -28,6 +28,7 @@ class GameDef:
     folders_only: bool = False  # mods must be folders; loose files (zips etc.) are ignored by the game
     name_prefix: str = ""  # mod names must start with this; Fix renames by adding it
     script_conflicts: bool = False  # mods replace whole script files, so two mods can't both change one
+    folder_prefix: str = ""  # only folders starting with this are mods (Arma 3's @mods in the game folder)
 
 
 KNOWN_GAMES: tuple[GameDef, ...] = (
@@ -71,6 +72,9 @@ KNOWN_GAMES: tuple[GameDef, ...] = (
     GameDef("sims4", "The Sims 4", ("{documents}/Electronic Arts/The Sims 4/Mods",),
             extensions=(".package", ".ts4script", ".cfg"), protected_rule=r"^Resource\.cfg$"),
     GameDef("cs2", "Cities: Skylines II", ("{locallow}/Colossal Order/Cities Skylines II/Mods",), allows_dll=True),
+    GameDef("arma3", "Arma 3", ("{steam:Arma 3}",), allows_dll=True, steam_appid=107410, folders_only=True,
+            folder_prefix="@"),
+    GameDef("reforger", "Arma Reforger", ("{documents}/My Games/ArmaReforger/addons",), folders_only=True),
     GameDef("snowrunner", "SnowRunner", ("{documents}/My Games/SnowRunner/base/Mods",)),
 )
 

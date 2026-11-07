@@ -38,6 +38,7 @@ SEARCH_URLS = {
     "fs25": "https://www.farming-simulator.com/mods.php?title=fs2025&filter=latest&searchMod={q}",
     "fs22": "https://www.farming-simulator.com/mods.php?title=fs2022&filter=latest&searchMod={q}",
     "stardew": "https://www.nexusmods.com/stardewvalley/search/?gsearch={q}",
+    "reforger": "https://reforger.armaplatform.com/workshop?search={q}",
 }
 
 
@@ -305,6 +306,9 @@ def analyze(scan: ScanResult) -> list[Issue]:
         elif gdef.id == "cyberpunk":
             from .cyberpunk import analyze_cyberpunk
             found = analyze_cyberpunk(game.mods_dir)
+        elif gdef.id == "arma3":
+            from .arma import analyze_arma3
+            found = analyze_arma3(scan.mods)
         elif gdef.id == "minecraft":
             from .minecraft import analyze_minecraft
             found = analyze_minecraft(scan.mods, game.mods_dir)
@@ -457,15 +461,22 @@ def _dependency_issues(scan: ScanResult, extra_copies: set[str]) -> list[Issue]:
     search = SEARCH_URLS.get(gdef.id)
     if not search and game.steam_appid and game.workshop_dir:
         search = f"https://steamcommunity.com/workshop/browse/?appid={game.steam_appid}&searchtext={{q}}"
+    names = {m.name: m.display_name for m in scan.mods}
+    dep_names = {k: v for m in scan.mods for k, v in m.dep_names.items()}
     for dep, needed_by in sorted(missing.items()):
-        url = search.format(q=urllib.parse.quote(dep.replace("FS25_", "").replace("FS22_", "").split(".")[-1])) if search else ""
+        label = dep_names.get(dep, dep)
+        if gdef.id == "reforger":
+            url = f"https://reforger.armaplatform.com/workshop/{urllib.parse.quote(dep)}"
+        else:
+            url = search.format(q=urllib.parse.quote(label.replace("FS25_", "").replace("FS22_", "").split(".")[-1])) if search else ""
         issues.append(Issue(
             CRITICAL, "Missing required mod",
-            f"'{dep}' isn't installed, but these mods need it:\n" + "\n".join(f"  - {n}" for n in needed_by),
-            f"Download '{dep}' and put it in your mods folder. Without it, the mods above won't load "
-            "or will cause errors.",
+            f"'{label}' isn't installed, but these mods need it:\n" + "\n".join(f"  - {names.get(n, n)}" for n in needed_by),
+            f"Download '{label}' and put it in your mods folder. Without it, the mods above won't load "
+            "or will cause errors." if gdef.id != "reforger" else
+            f"Download '{label}' from Arma Reforger's Workshop. Without it, the mods above won't load.",
             needed_by, action="search" if url else "", params={"url": url}, safe=False,
-            action_label=f"Search online for {dep}" if url else "",
+            action_label=f"Search online for {label}" if gdef.id != "reforger" else f"Open {label} on the Reforger Workshop",
         ))
     for dep, (mod, needed_by) in sorted(disabled.items()):
         if mod.workshop:
