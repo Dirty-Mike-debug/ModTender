@@ -141,6 +141,10 @@ class DashboardPage(Page):
     def __init__(self, win):
         super().__init__(win)
         more, _ = more_button([
+            ("Match mods with a server or friend…", win.compare_mod_list, "users",
+             "See what's missing or different compared with a server, a friend or a modpack"),
+            ("Share my mod list…", win.share_mod_list, "save", "Save a file friends can match their mods to"),
+            None,
             ("Open mods folder", win.open_mods_folder, "folder", ""),
             ("Save report…", win.export_report, "report", "Save a text report you can share when asking for help"),
         ])
@@ -163,22 +167,17 @@ class DashboardPage(Page):
             grid.setColumnStretch(c, 4)
         self.root.addLayout(grid)
 
-        hint = QFrame(objectName="Hint")
-        hl = QHBoxLayout(hint)
-        hl.setContentsMargins(16, 10, 12, 10)
-        hl.setSpacing(12)
-        mark = QLabel()
-        mark.setPixmap(icon("search", theme.ACCENT, 20).pixmap(20, 20))
-        hl.addWidget(mark)
-        words = QVBoxLayout()
-        words.setSpacing(1)
-        words.addWidget(QLabel("Game crashing or something not working?", objectName="CardTitle"))
-        words.addWidget(QLabel("ModTender can find which mod is causing it, a few rounds at a time.",
-                               objectName="CardSub", wordWrap=True))
-        hl.addLayout(words, 1)
-        hl.addWidget(button("Find broken mod", win.find_broken_mod, icon_name="search",
-                            tip="Turns mods off in halves while you test the game, until only the cause is left"))
-        self.root.addWidget(hint)
+        hints = QHBoxLayout()
+        hints.setSpacing(14)
+        hints.addWidget(self._hint("search", "Game crashing or something not working?",
+                                   "Find which mod is causing it, a few rounds at a time.",
+                                   button("Find broken mod", win.find_broken_mod, icon_name="search",
+                                          tip="Turns mods off in halves while you test the game")), 1)
+        hints.addWidget(self._hint("users", "Playing with friends or on a server?",
+                                   "See which mods you're missing or have a different version of.",
+                                   button("Match mods", win.compare_mod_list, icon_name="users",
+                                          tip="Compare with a server, a friend's mod list or a modpack")), 1)
+        self.root.addLayout(hints)
 
         row = QHBoxLayout()
         row.addWidget(QLabel("Top issues", objectName="Section"))
@@ -200,6 +199,23 @@ class DashboardPage(Page):
         self.root.addWidget(self.issue_table, 1)
         self.root.addWidget(self.empty, 1)
         self.empty.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+
+    @staticmethod
+    def _hint(icon_name: str, title: str, text: str, action) -> QFrame:
+        card = QFrame(objectName="Hint")
+        hl = QHBoxLayout(card)
+        hl.setContentsMargins(16, 10, 12, 10)
+        hl.setSpacing(12)
+        mark = QLabel()
+        mark.setPixmap(icon(icon_name, theme.ACCENT, 20).pixmap(20, 20))
+        hl.addWidget(mark)
+        words = QVBoxLayout()
+        words.setSpacing(1)
+        words.addWidget(QLabel(title, objectName="CardTitle", wordWrap=True))
+        words.addWidget(QLabel(text, objectName="CardSub", wordWrap=True))
+        hl.addLayout(words, 1)
+        hl.addWidget(action)
+        return card
 
     def _message(self, text: str, color: str | None = None):
         self.issue_table.hide()
@@ -280,6 +296,10 @@ class ModsPage(Page):
     def __init__(self, win):
         super().__init__(win)
         more, self.more_actions = more_button([
+            ("Match mods with a server or friend…", win.compare_mod_list, "users",
+             "See what's missing or different compared with a server, a friend or a modpack"),
+            ("Share my mod list…", win.share_mod_list, "save", "Save a file friends can match their mods to"),
+            None,
             ("Show in Explorer", self._reveal, "folder", "Open the folder with the selected mod"),
             ("Open Workshop page", self._workshop, "external", "Open the selected Steam Workshop item on Steam"),
             ("Open mods folder", win.open_mods_folder, "folder", ""),

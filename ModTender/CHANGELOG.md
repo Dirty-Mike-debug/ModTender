@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0
+- **Match mods with a server or friend.** New card on the Dashboard (also in the More menus). Open a friend's ModTender mod list, a Farming Simulator server's stats file or link, a savegame's careerSavegame.xml, a Modrinth modpack (.mrpack), or paste a list of names, and see which mods you're missing, have turned off, have a different version of, or have extra. One click turns on the ones you have but disabled, downloads missing mods from Modrinth packs (checked against the pack's checksums), turns off extras, or opens the missing ones on ModHub / Modrinth. **Copy as text** gives you the differences to paste into Discord.
+- **Share my mod list** saves a small .modtender file listing your turned-on mods, for friends to match.
+
 ## 0.16.1
 - Tidier pages: less-used buttons (open folder, save report, show in Explorer, Workshop page, read crash log, scan again) moved into a **More** menu on the Dashboard, Mods and Issues pages.
 - **Find broken mod** now has its own card on the Dashboard, under the stats.

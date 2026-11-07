@@ -750,6 +750,39 @@ class MainWindow(QMainWindow):
             self.scan = None
             self.start_scan()
 
+    # ------------------------------------------------------------ sharing and matching mod lists
+
+    def share_mod_list(self):
+        from ..core import modlist
+        from ..core.paths import desktop_dir
+        if not self.game or not self.scan:
+            QMessageBox.information(self, APP_NAME, "Scan the game first.")
+            return
+        safe = "".join(ch for ch in self.game.name if ch not in '\\/:*?"<>|').strip()
+        default = str(desktop_dir() / f"{safe} mods.modtender")
+        target, _ = QFileDialog.getSaveFileName(self, "Save your mod list", default, "ModTender mod list (*.modtender)")
+        if not target:
+            return
+        modlist.export_setup(self.game, self.scan.mods, Path(target))
+        on = sum(m.enabled for m in self.scan.mods)
+        self.status(f"Saved a list of {on} mods to {target}")
+        reveal_in_explorer(Path(target))
+        QMessageBox.information(self, "Share my mod list",
+                                f"Saved a list of your {on} turned-on mods.\n\nSend this file to a friend. In "
+                                "ModTender they choose Match mods, open the file, and see exactly what they're "
+                                "missing or have a different version of.")
+
+    def compare_mod_list(self):
+        from .compare_dialog import CompareDialog
+        if not self.game or not self.scan:
+            QMessageBox.information(self, APP_NAME, "Scan the game first.")
+            return
+        dlg = CompareDialog(self, self.game, list(self.scan.mods))
+        dlg.exec()
+        if dlg.changed:
+            self.scan = None
+            self.start_scan()
+
     # ------------------------------------------------------------ installing mods
 
     def dragEnterEvent(self, event):
