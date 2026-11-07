@@ -112,6 +112,8 @@ class DashboardPage(Page):
 
     def __init__(self, win):
         super().__init__(win)
+        self.actions.addWidget(button("Find broken mod", win.find_broken_mod, icon_name="search",
+                                      tip="Something crashing or broken? Find which mod causes it, round by round"))
         self.actions.addWidget(button("Open folder", win.open_mods_folder, icon_name="folder"))
         self.actions.addWidget(button("Report", win.export_report, icon_name="report",
                                       tip="Save a text report you can share when asking for help"))

@@ -43,6 +43,7 @@ class Mod:
     workshop_id: str = ""
     loaders: list[str] = field(default_factory=list)  # Minecraft: fabric | quilt | forge | neoforge
     mc_req: dict = field(default_factory=dict)  # Minecraft: loader -> required Minecraft versions
+    requires: list[str] = field(default_factory=list)  # Minecraft: ids of mods this one needs
 
     @property
     def display_name(self) -> str:
@@ -149,6 +150,8 @@ def _apply_json_manifest(mod: Mod, data: bytes, kind: str) -> None:
             mod.loaders.append(loader)
         if req:
             mod.mc_req[loader] = req
+        from .minecraft import fabric_requires
+        mod.requires += [r for r in fabric_requires(meta) if r not in mod.requires]
         if "quilt_loader" in meta:
             meta = meta["quilt_loader"] | meta["quilt_loader"].get("metadata", {})
         mod.mod_id = mod.mod_id or str(meta.get("id", ""))
@@ -201,6 +204,8 @@ def _apply_mods_toml(mod: Mod, data: bytes, neo_file: bool = False) -> None:  # 
         mod.loaders.append(loader)
     if req:
         mod.mc_req[loader] = req
+    from .minecraft import toml_requires
+    mod.requires += [r for r in toml_requires(parsed) if r not in mod.requires]
     for attr, key in (("mod_id", "modId"), ("version", "version"), ("title", "displayName")):
         value = str(entry.get(key, "") or "")
         if value and "${" not in value and not getattr(mod, attr):

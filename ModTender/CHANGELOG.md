@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.0
+- **Find the broken mod.** New on the Dashboard. When something crashes or breaks and the logs don't say why, ModTender turns mods off in halves, you start the game and say whether the problem still happens, and it narrows down to the one mod causing it: about 11 rounds for 500 mods. The first round checks whether it's a mod at all, the last confirms the result. Mods that other mods need are turned off together, so you never get "missing dependency" errors along the way. Progress is saved, so you can close ModTender and carry on later, and Stop always puts everything back. Works for Minecraft, Farming Simulator, Stardew Valley, Valheim, Cyberpunk, Witcher 3, The Sims 4 and custom games. Not yet for Skyrim, Fallout 4, Baldur's Gate 3, RimWorld and the truck sims, because moving their mods would scramble their load order or mod list.
+- Minecraft mods now record which other mods they need.
+
 ## 0.15.0
 - **Install mods by drag and drop.** Drop downloaded mods anywhere on the window (or use **Install mod** on the Mods page) and ModTender puts them where the game expects: copies .jar/.zip/.package files, unpacks zips for games that use folders (Stardew, RimWorld, Witcher 3), puts Valheim Thunderstore packages into BepInEx/plugins, sends Cyberpunk files to the right game folders, and unpacks Skyrim/Fallout mods into Data. Older copies with the same name go to quarantine instead of being overwritten. Tells you plainly when something can't be installed (RAR/7z files, FOMOD installers).
 - **Mod updates (Minecraft).** **Mod updates** on the Mods page checks Modrinth for newer versions that match your loader and Minecraft version. Pick which to install; downloads are checked against Modrinth's checksum, and old versions are kept in disabled mods so you can switch back. Warns before updating mods inside a CurseForge modpack.

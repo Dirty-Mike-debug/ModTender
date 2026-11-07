@@ -59,6 +59,40 @@ def read_toml(data: dict | None, text: str, neo_file: bool) -> tuple[str, str]:
     return loader, req
 
 
+PLATFORM_IDS = {"minecraft", "java", "forge", "neoforge", "fabricloader", "quilt_loader", "fml", "javafml"}
+
+
+def fabric_requires(meta: dict) -> list[str]:
+    """Ids of the mods a Fabric/Quilt mod needs."""
+    try:
+        if "quilt_loader" in meta:
+            deps = (meta["quilt_loader"] or {}).get("depends") or []
+            ids = [d if isinstance(d, str) else d.get("id", "") for d in deps if isinstance(d, (str, dict))]
+        else:
+            ids = list((meta.get("depends") or {}).keys())
+    except AttributeError:
+        return []
+    return [i for i in ids if i and i.lower() not in PLATFORM_IDS]
+
+
+def toml_requires(data) -> list[str]:
+    """Ids of the mods a Forge/NeoForge mod needs (required dependencies only)."""
+    if not isinstance(data, dict):
+        return []
+    raw = data.get("dependencies") or {}
+    blocks = raw.values() if isinstance(raw, dict) else [raw] if isinstance(raw, list) else []
+    out = []
+    for block in blocks:
+        for d in block if isinstance(block, list) else [block]:
+            if not isinstance(d, dict):
+                continue
+            needed = str(d.get("type", "")).lower() == "required" or d.get("mandatory") is True
+            mid = str(d.get("modId", ""))
+            if needed and mid and mid.lower() not in PLATFORM_IDS and mid not in out:
+                out.append(mid)
+    return out
+
+
 # ---------------------------------------------------------------- version matching
 
 def _ver(text: str) -> tuple[int, ...] | None:

@@ -285,6 +285,7 @@ class MainWindow(QMainWindow):
         self._load_backups()
         self.refresh_all()
         self.start_scan()
+        QTimer.singleShot(400, self._offer_resume_hunt)
 
     def add_custom_game(self):
         folder = QFileDialog.getExistingDirectory(self, "Choose the game's mods folder")
@@ -681,6 +682,72 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, APP_NAME, "Some mods couldn't be changed:\n\n" + "\n".join(errors))
         if changed:
             self.status(f"{'Enabled' if enable else 'Disabled'} {changed} mod(s).")
+            self.start_scan()
+
+    # ------------------------------------------------------------ find the broken mod
+
+    def show_error(self, title: str, detail) -> None:
+        log.error("%s: %s", title, detail)
+        QMessageBox.warning(self, APP_NAME, f"{title}.\n\n{detail}")
+
+    def find_broken_mod(self):
+        from ..core import bisect
+        from .hunt_dialog import HuntDialog, unsupported_reason
+        if not self.game:
+            return
+        hunt = bisect.load(self.game.id)
+        if hunt is None:
+            why = unsupported_reason(self.game)
+            if why:
+                QMessageBox.information(self, "Find the broken mod", why)
+                return
+            if not self.scan:
+                QMessageBox.information(self, APP_NAME, "Scan the game first.")
+                return
+            on = [m for m in self.scan.mods if m.enabled and not m.workshop and not m.protected]
+            import math
+            rounds = 2 + math.ceil(math.log2(max(2, len(on))))
+            answer = QMessageBox.question(
+                self, "Find the broken mod",
+                f"ModTender will help you find which of your {len(on)} mods is causing a crash or bug.\n\n"
+                f"Each round it turns some mods off, you start the game and say whether the problem still "
+                f"happens. It takes about {rounds} rounds. Mods that other mods need are handled for you, and "
+                "at the end everything is put back the way it was.\n\n"
+                "Don't save your game during the search. Start now?")
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+            try:
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+                hunt = bisect.start(self.game, self.scan.mods)
+            except Exception as exc:
+                self.show_error("Couldn't start the search", exc)
+                return
+            finally:
+                QApplication.restoreOverrideCursor()
+        dlg = HuntDialog(self, self.game, hunt)
+        dlg.exec()
+        self.scan = None
+        self.start_scan()
+
+    def _offer_resume_hunt(self):
+        from ..core import bisect
+        if not self.game or bisect.load(self.game.id) is None:
+            return
+        box = QMessageBox(self)
+        box.setWindowTitle("Find the broken mod")
+        box.setText(f"You're in the middle of finding a broken mod in {self.game.name}. Some mods are turned "
+                    "off for it right now.")
+        carry = box.addButton("Carry on", QMessageBox.ButtonRole.AcceptRole)
+        stop = box.addButton("Stop and put everything back", QMessageBox.ButtonRole.DestructiveRole)
+        box.addButton("Later", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        if box.clickedButton() is carry:
+            self.find_broken_mod()
+        elif box.clickedButton() is stop:
+            problems = bisect.stop(self.game)
+            if problems:
+                self.show_error("Some mods couldn't be put back", "\n".join(problems))
+            self.scan = None
             self.start_scan()
 
     # ------------------------------------------------------------ installing mods
