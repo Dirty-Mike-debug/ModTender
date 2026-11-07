@@ -157,6 +157,12 @@ def apply_updates(game, updates: list[ModUpdate], progress=None) -> tuple[list[s
                     out.write(chunk)
             if u.sha1 and h.hexdigest().lower() != u.sha1.lower():
                 raise UpdateCheckError("the download didn't match Modrinth's checksum")
+            from . import virusscan
+            verdict = virusscan.scan_file(part)
+            if verdict.flagged:
+                raise OSError(f"{verdict.engine} flagged the download as {verdict.threat}, so it wasn't installed")
+            if verdict.status == virusscan.CLEAN:
+                virusscan.remember(h.hexdigest(), verdict)
             if old.exists():
                 dest = paths.disabled_dir(game.id) / u.mod_name
                 if dest.exists():

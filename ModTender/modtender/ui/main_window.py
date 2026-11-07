@@ -783,6 +783,42 @@ class MainWindow(QMainWindow):
             self.scan = None
             self.start_scan()
 
+    # ------------------------------------------------------------ virus scan
+
+    def scan_for_viruses(self):
+        from ..core import virusscan
+        if not self.game or not self.scan:
+            QMessageBox.information(self, APP_NAME, "Scan the game first.")
+            return
+        if self.game.workshop_only:
+            QMessageBox.information(self, APP_NAME, "Steam checks Workshop mods itself.")
+            return
+        game = self.game
+        mods = [m for m in self.scan.mods if not m.workshop and not m.protected]
+
+        def done(results):
+            flagged = [(n, r) for n, r in results.items() if r.flagged]
+            failed = [r for r in results.values() if r.status in (virusscan.ERROR, virusscan.UNAVAILABLE)]
+            engine = next((r.engine for r in results.values() if r.engine), "")
+            if flagged:
+                text = (f"{len(flagged)} mod{'s were' if len(flagged) != 1 else ' was'} flagged:\n\n"
+                        + "\n".join(f"   {n}: {r.threat}" for n, r in flagged[:15])
+                        + "\n\nThey're listed on the Issues page, where you can move them to quarantine.")
+                QMessageBox.warning(self, "Virus scan", text)
+            elif failed and len(failed) == len(results):
+                QMessageBox.warning(self, "Virus scan", "ModTender couldn't reach an antivirus to check your mods.\n\n"
+                                    + (failed[0].detail or ""))
+            else:
+                QMessageBox.information(self, "Virus scan",
+                                        f"No threats found in {len(results) - len(failed)} mods"
+                                        + (f" (checked with {engine})" if engine else "") + "."
+                                        + (f"\n\n{len(failed)} couldn't be checked." if failed else ""))
+            self.issues = analyze(self.scan)
+            self.refresh_all()
+
+        self._run("Checking your mods for viruses…", lambda progress: virusscan.scan_mods(game, mods, progress),
+                  on_done=done)
+
     # ------------------------------------------------------------ installing mods
 
     def dragEnterEvent(self, event):
@@ -820,9 +856,12 @@ class MainWindow(QMainWindow):
         from ..core import installer
         game = self.game
 
+        scan = self.settings.scan_new_mods
+
         def work(progress):
-            progress(30, f"Installing into {game.name}…")
-            return installer.install(game, files)
+            progress(30, f"Checking for viruses and installing into {game.name}…" if scan
+                     else f"Installing into {game.name}…")
+            return installer.install(game, files, scan=scan)
 
         def done(result):
             lines = []
@@ -832,6 +871,8 @@ class MainWindow(QMainWindow):
                 lines.append("Older copies moved to quarantine:\n" + "\n".join(f"   {n}" for n in result.replaced))
             if result.problems:
                 lines.append("Not installed:\n" + "\n".join(f"   {n}" for n in result.problems))
+            if result.scanned:
+                lines.append(result.scanned)
             box = QMessageBox.warning if result.problems and not result.installed else QMessageBox.information
             box(self, "Install mods", "\n\n".join(lines) or "Nothing was installed.")
             if result.installed:

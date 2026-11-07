@@ -291,11 +291,14 @@ class DashboardPage(Page):
 
 class ModsPage(Page):
     title = "Mods"
-    COLS = ["Status", "Name", "Version", "Type", "Size", "Modified", "Issues"]
+    COLS = ["Status", "Name", "Version", "Type", "Size", "Modified", "Virus scan", "Issues"]
 
     def __init__(self, win):
         super().__init__(win)
         more, self.more_actions = more_button([
+            ("Scan for viruses", win.scan_for_viruses, "shield",
+             "Check every mod with your antivirus. Mods checked in the last 30 days are skipped."),
+            None,
             ("Match mods with a server or friend…", win.compare_mod_list, "users",
              "See what's missing or different compared with a server, a friend or a modpack"),
             ("Share my mod list…", win.share_mod_list, "save", "Save a file friends can match their mods to"),
@@ -332,7 +335,7 @@ class ModsPage(Page):
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         h = self.table.horizontalHeader()
         h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        for c in (0, 2, 3, 4, 5, 6):
+        for c in (0, 2, 3, 4, 5, 6, 7):
             h.setSectionResizeMode(c, QHeaderView.ResizeMode.ResizeToContents)
         self.table.doubleClicked.connect(self._reveal)
         self.root.addWidget(self.table, 1)
@@ -354,6 +357,20 @@ class ModsPage(Page):
         else:
             self.win.status("Select a Steam Workshop mod first.")
 
+    @staticmethod
+    def _scan_cell(hit: dict | None) -> SortItem:
+        if not hit:
+            return SortItem("–", 1)
+        if hit.get("status") == "threat":
+            item = SortItem("⚠  Flagged", 0)
+            item.setForeground(QColor(theme.CRITICAL))
+            item.setToolTip(f"{hit.get('engine') or 'Your antivirus'} flagged this as {hit.get('threat') or 'a threat'}")
+            return item
+        item = SortItem("✓  Clean", 2)
+        item.setForeground(QColor(theme.SUCCESS))
+        item.setToolTip(f"Checked with {hit.get('engine') or 'your antivirus'} on {str(hit.get('date', ''))[:10]}")
+        return item
+
     def refresh(self):
         scan = self.win.scan
         self.table.setSortingEnabled(False)
@@ -370,6 +387,8 @@ class ModsPage(Page):
         text = self.search.text().strip().lower()
         mode = self.filter.currentIndex()
         shown = 0
+        from ..core import virusscan
+        scans = virusscan._load_cache()
         for m in scan.mods:
             if text and text not in m.name.lower() and text not in m.title.lower():
                 continue
@@ -387,6 +406,7 @@ class ModsPage(Page):
                 SortItem("Steam Workshop" if m.workshop else m.kind.capitalize()),
                 SortItem(human_size(m.size), m.size),
                 SortItem(m.modified.strftime("%Y-%m-%d"), m.mtime),
+                self._scan_cell(scans.get(virusscan.key_for(m))),
                 SortItem(f"⚠  {n_issues}" if n_issues else "", n_issues),
             ]
             cells[0].setForeground(QColor(theme.INFO if m.workshop else theme.SUCCESS if m.enabled else theme.MUTED))
@@ -394,7 +414,7 @@ class ModsPage(Page):
             cells[1].setToolTip((f"Steam Workshop item {m.workshop_id}" if m.workshop else m.name) + f"\n{m.path}"
                                 + (f"\nby {m.author}" if m.author else ""))
             if n_issues:
-                cells[6].setForeground(QColor(theme.WARNING))
+                cells[7].setForeground(QColor(theme.WARNING))
             if not m.enabled:
                 for c in cells[1:6]:
                     c.setForeground(QColor(theme.MUTED))
@@ -893,6 +913,9 @@ class SettingsPage(Page):
         self.deep = QCheckBox("Deep check: verify every byte of every archive (slower, catches subtle damage)")
         self.deep.toggled.connect(self._save)
         form.addRow("Scanning", self.deep)
+        self.virus = QCheckBox("Check new mods and updates with my antivirus before installing them")
+        self.virus.toggled.connect(self._save)
+        form.addRow("", self.virus)
         self.body.addLayout(form)
         from ..core import paths
         info = QLabel(f"Disabled mods are parked in {paths.DATA_DIR}\\disabled so the game can't see them. "
@@ -968,6 +991,7 @@ class SettingsPage(Page):
         self.backup_dir.setText(s.backup_dir)
         self.keep.setValue(s.keep_backups)
         self.deep.setChecked(s.deep_check)
+        self.virus.setChecked(s.scan_new_mods)
         self.auto_update.setChecked(s.check_updates_on_start)
         self.repo.setText(s.update_repo)
         if self.win.user is not None:
@@ -1001,6 +1025,7 @@ class SettingsPage(Page):
         s.backup_dir = self.backup_dir.text().strip()
         s.keep_backups = self.keep.value()
         s.deep_check = self.deep.isChecked()
+        s.scan_new_mods = self.virus.isChecked()
         s.check_updates_on_start = self.auto_update.isChecked()
         s.update_repo = self.repo.text().strip().strip("/")
         self.win.save_settings()

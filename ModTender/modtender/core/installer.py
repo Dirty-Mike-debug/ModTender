@@ -29,15 +29,34 @@ class InstallResult:
     installed: list[str] = field(default_factory=list)  # what ended up in the game, in plain words
     replaced: list[str] = field(default_factory=list)  # older copies moved to quarantine
     problems: list[str] = field(default_factory=list)  # files that weren't installed, and why
+    scanned: str = ""  # which antivirus checked the files, or why they couldn't be checked
 
 
-def install(game, files: list[Path]) -> InstallResult:
+def install(game, files: list[Path], scan: bool = True) -> InstallResult:
     result = InstallResult()
     if getattr(game, "workshop_only", False):
         result.problems.append(f"{game.name} only uses Steam Workshop mods. Subscribe to mods on Steam instead.")
         return result
     game.mods_dir.mkdir(parents=True, exist_ok=True)
     for src in files:
+        if scan and Path(src).is_file():
+            from . import virusscan
+            verdict = virusscan.scan_file(Path(src))
+            if verdict.flagged:
+                result.problems.append(f"{Path(src).name}: {verdict.engine or 'your antivirus'} flagged it as "
+                                       f"{verdict.threat or 'harmful'}, so it was NOT installed. Delete it from "
+                                       "your Downloads.")
+                log.warning("[%s] Blocked install of %s: %s", game.id, src, verdict.threat)
+                continue
+            if verdict.status == virusscan.CLEAN:
+                result.scanned = f"Checked with {verdict.engine}: no threats found."
+                import hashlib
+                try:
+                    virusscan.remember(hashlib.sha1(Path(src).read_bytes()).hexdigest(), verdict)
+                except OSError:
+                    pass
+            elif not result.scanned:
+                result.scanned = f"Couldn't check for viruses: {verdict.detail or 'no antivirus answered'}."
         try:
             _install_one(game, Path(src), result)
         except InstallError as exc:

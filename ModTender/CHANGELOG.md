@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.0
+- **Virus scan for mods.** Every mod you install with ModTender, every Modrinth update and every modpack download is checked with your antivirus first; anything flagged is blocked and never reaches the game. Uses Microsoft Defender when it's on, and otherwise Windows' antimalware interface, which passes the file to whatever antivirus you have (Norton, Bitdefender and so on).
+- **Scan for viruses** (Mods page, More menu) checks all your current mods. Results are remembered, so a mod is only checked again when it changes or after 30 days.
+- New **Virus scan** column on the Mods page: Clean, Flagged, or not checked yet. Flagged mods show up on the Issues page as critical, with a one-click move to quarantine.
+- Settings → Backups & scanning: turn the automatic check off if you need to.
+
 ## 0.17.0
 - **Match mods with a server or friend.** New card on the Dashboard (also in the More menus). Open a friend's ModTender mod list, a Farming Simulator server's stats file or link, a savegame's careerSavegame.xml, a Modrinth modpack (.mrpack), or paste a list of names, and see which mods you're missing, have turned off, have a different version of, or have extra. One click turns on the ones you have but disabled, downloads missing mods from Modrinth packs (checked against the pack's checksums), turns off extras, or opens the missing ones on ModHub / Modrinth. **Copy as text** gives you the differences to paste into Discord.
 - **Share my mod list** saves a small .modtender file listing your turned-on mods, for friends to match.

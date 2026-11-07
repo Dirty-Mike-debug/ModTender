@@ -12,6 +12,7 @@ class Settings:
     backup_dir: str = ""
     keep_backups: int = 10
     deep_check: bool = False  # verify every byte of every archive (slow on big collections)
+    scan_new_mods: bool = True  # virus-check downloads before installing or updating them
     custom_games: list[dict] = field(default_factory=list)
     hidden_games: list[str] = field(default_factory=list)
     last_game: str = ""

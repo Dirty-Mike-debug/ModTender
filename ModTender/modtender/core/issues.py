@@ -327,6 +327,21 @@ def analyze(scan: ScanResult) -> list[Issue]:
         issues.append(Issue(d["severity"], d["title"], d["detail"], d["fix"], d.get("mods", []),
                             action=action, params=params, safe=False, action_label=label))
 
+    try:
+        from .virusscan import flagged_mods
+        for m, r in flagged_mods(scan.mods):
+            issues.append(Issue(
+                CRITICAL, "Your antivirus flagged this mod",
+                f"{r.engine or 'Your antivirus'} detected {r.threat or 'a threat'} in {m.display_name}"
+                + (f" ({r.detail})" if r.detail else "") + ".\n\nIt could be a false alarm (some mod tools are "
+                "flagged by mistake), but malware hidden in mods does happen.",
+                "Move it to quarantine. If you trust where it came from, check the mod's page for reports first.",
+                [m.name], action="quarantine_mod", params={"mod": m.name},
+                action_label="Move it to ModTender's quarantine folder"))
+    except Exception as exc:
+        from .log import log
+        log.warning("[%s] Virus scan results couldn't be read: %s", game.id, exc)
+
     issues += _dependency_issues(scan, extra_copies)
 
     strays = scan.strays

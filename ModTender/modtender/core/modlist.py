@@ -296,6 +296,12 @@ def download_missing(game, items: list[ListedMod], progress=None) -> tuple[list[
                     out.write(chunk)
             if item.sha1 and h.hexdigest().lower() != item.sha1.lower():
                 raise OSError("the download didn't match the pack's checksum")
+            from . import virusscan
+            verdict = virusscan.scan_file(part)
+            if verdict.flagged:
+                raise OSError(f"{verdict.engine} flagged the download as {verdict.threat}, so it wasn't installed")
+            if verdict.status == virusscan.CLEAN:
+                virusscan.remember(h.hexdigest(), verdict)
             if target.exists():
                 raise OSError("a file with that name is already there")
             part.replace(target)
