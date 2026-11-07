@@ -26,6 +26,8 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setStyle("Fusion")
+    from modtender.ui.widgets import guard_wheel
+    guard_wheel(app)
 
     server = None
     if "--self-test" not in sys.argv:

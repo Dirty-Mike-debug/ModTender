@@ -7,7 +7,7 @@ from pathlib import Path
 from PySide6.QtCore import QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (
-    QApplication, QButtonGroup, QCheckBox, QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel,
+    QApplication, QButtonGroup, QCheckBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel,
     QMainWindow, QMessageBox, QProgressBar, QPushButton, QStackedWidget, QVBoxLayout, QWidget,
 )
 
@@ -22,7 +22,7 @@ from ..core.scanner import scan_game
 from ..core.settings import load_settings, save_settings
 from . import theme
 from .pages import BackupsPage, DashboardPage, IssuesPage, ModsPage, SettingsPage, SourcesPage
-from .widgets import Task, app_icon, icon, logo_pixmap, reveal_in_explorer
+from .widgets import ElidedCombo, Task, app_icon, icon, logo_pixmap, reveal_in_explorer
 
 NAV = [("dashboard", "Dashboard"), ("mods", "Mods"), ("issues", "Issues"),
        ("backups", "Backups"), ("sources", "Get mods"), ("settings", "Settings")]
@@ -129,7 +129,8 @@ class MainWindow(QMainWindow):
         lay.addSpacing(22)
 
         lay.addWidget(QLabel("GAME", objectName="SideLabel"))
-        self.game_box = QComboBox()
+        self.game_box = ElidedCombo()
+        self.game_box.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.game_box.currentIndexChanged.connect(self._on_game_changed)
         game_row = QHBoxLayout()
         game_row.setSpacing(6)

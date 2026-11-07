@@ -160,8 +160,23 @@ def steam_libraries() -> list[Path]:
         key = str(lib).lower()
         if key not in seen and (lib / "steamapps" / "common").exists():
             seen.add(key)
-            unique.append(lib)
+            unique.append(_true_case(lib))
     return unique
+
+
+def _true_case(path: Path) -> Path:
+    """Steam often writes library paths in lowercase ("c:\\program files (x86)\\steam"). On Windows, ask the
+    file system for the real spelling so paths shown in ModTender look right."""
+    if not paths.IS_WINDOWS:
+        return path
+    try:
+        real = path.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return path
+    # resolve() can turn a mapped drive into a \\server\\share path: keep the drive letter in that case.
+    if str(real).lower() != str(path).lower():
+        return path
+    return real
 
 
 def _resolve_template(template: str, libraries: list[Path], appid: int = 0) -> list[Path]:

@@ -16,7 +16,6 @@ import urllib.error
 import urllib.request
 from collections import Counter
 from dataclasses import dataclass
-from pathlib import Path
 
 from .. import UPDATE_REPO, __version__
 from . import paths

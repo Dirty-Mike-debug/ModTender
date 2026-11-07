@@ -86,17 +86,6 @@ def _requirements(mods: list) -> dict[str, list[str]]:
     return out
 
 
-def _with_needs(keep: set[str], needs: dict, pool: set[str]) -> set[str]:  # used by tests
-    """keep plus everything in pool that keep needs, directly or indirectly."""
-    result, todo = set(keep), list(keep)
-    while todo:
-        for dep in needs.get(todo.pop(), []):
-            if dep in pool and dep not in result:
-                result.add(dep)
-                todo.append(dep)
-    return result
-
-
 # ---------------------------------------------------------------- the search
 
 def start(game, mods: list) -> Hunt:

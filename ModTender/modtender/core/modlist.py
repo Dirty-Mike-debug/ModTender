@@ -15,7 +15,7 @@ import json
 import re
 import urllib.request
 import zipfile
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from xml.etree import ElementTree

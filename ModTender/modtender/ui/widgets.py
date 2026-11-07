@@ -6,9 +6,12 @@ import sys
 import traceback
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QRectF, QThread, QUrl, Qt, Signal
+from PySide6.QtCore import QByteArray, QEvent, QObject, QRectF, QThread, QUrl, Qt, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPen, QPixmap
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QTableWidgetItem, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QAbstractScrollArea, QAbstractSpinBox, QApplication, QComboBox, QFrame, QHBoxLayout, QLabel, QStyle,
+    QStyleOptionComboBox, QStylePainter, QTableWidgetItem, QVBoxLayout, QWidget,
+)
 
 from . import theme
 
@@ -245,3 +248,39 @@ def reveal_in_explorer(path: Path):
         return
     target = path if path.is_dir() else path.parent
     QDesktopServices.openUrl(QUrl.fromLocalFile(str(target)))
+
+
+class ElidedCombo(QComboBox):
+    """A drop-down that shortens a long choice with '…' instead of cutting it off mid-word."""
+
+    def paintEvent(self, event):
+        painter = QStylePainter(self)
+        opt = QStyleOptionComboBox()
+        self.initStyleOption(opt)
+        painter.drawComplexControl(QStyle.ComplexControl.CC_ComboBox, opt)
+        rect = self.style().subControlRect(QStyle.ComplexControl.CC_ComboBox, opt,
+                                           QStyle.SubControl.SC_ComboBoxEditField, self)
+        opt.currentText = self.fontMetrics().elidedText(opt.currentText, Qt.TextElideMode.ElideRight,
+                                                        rect.width() - 4)
+        painter.drawControl(QStyle.ControlElement.CE_ComboBoxLabel, opt)
+
+
+class WheelGuard(QObject):
+    """Stops the mouse wheel from changing a drop-down or number box the pointer just happens to be over
+    while the page scrolls. Click the box first and the wheel works on it as usual."""
+
+    def eventFilter(self, obj, event):
+        if (event.type() == QEvent.Type.Wheel and isinstance(obj, (QComboBox, QAbstractSpinBox))
+                and not obj.hasFocus()):
+            parent = obj.parentWidget()
+            while parent is not None and not isinstance(parent, QAbstractScrollArea):
+                parent = parent.parentWidget()
+            if parent is not None:
+                QApplication.sendEvent(parent.verticalScrollBar(), event)
+            return True
+        return False
+
+
+def guard_wheel(app: QApplication) -> None:
+    app._wheel_guard = WheelGuard(app)
+    app.installEventFilter(app._wheel_guard)

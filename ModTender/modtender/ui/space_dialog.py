@@ -5,15 +5,8 @@ from PySide6.QtWidgets import QDialog, QHBoxLayout, QHeaderView, QLabel, QMessag
 
 from ..core import spacesaver
 from .pages import button, make_table
+from ..core.report import human_size as _size
 from .widgets import SortItem
-
-
-def _size(n: int) -> str:
-    for unit in ("bytes", "KB", "MB", "GB"):
-        if n < 1024 or unit == "GB":
-            return f"{n:.1f} {unit}" if unit not in ("bytes",) else f"{n} bytes"
-        n /= 1024
-    return f"{n:.1f} GB"
 
 
 class SpaceDialog(QDialog):
@@ -40,7 +33,7 @@ class SpaceDialog(QDialog):
         if plan.skipped_onedrive:
             notes.append(f"{plan.skipped_onedrive} mod files in OneDrive folders were left alone (OneDrive doesn't "
                          "support this).")
-        notes.append("Windows Explorer will still show each folder's full size; the free space on your drive is "
+        notes.append("Your file manager will still show each folder's full size; the free space on your drive is "
                      "what goes up.")
         lay.addWidget(QLabel("  ".join(notes), wordWrap=True, objectName="Muted"))
         self.table = make_table(["Mod", "Size", "Copies", "Saves", "Used by"])

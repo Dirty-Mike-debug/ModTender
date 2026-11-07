@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.28.1
+- **Tidy-up pass.**
+- The mouse wheel no longer changes a drop-down (theme, game, text size…) when you're just scrolling a page past it. Click the box first if you want to use the wheel on it.
+- Long game names in the sidebar now end with "…" instead of being cut off mid-word. Hover to see the full name.
+- Steam library paths now show with their proper capitals (C:\Program Files (x86)\Steam…) instead of all lowercase.
+- Get mods: a Steam Workshop game now shows under its own name instead of "Other games", without a second Steam Workshop card, and the tip names your game.
+- Issues: when there's nothing wrong, the details panel says so and points to the crash log reader and Find broken mod.
+- Backups: for games whose mods all come from the Workshop, the empty backup list and buttons are hidden and Back up now is greyed out.
+- "Show in Explorer" is now "Show in folder", so it reads right on Linux too. Small code clean-ups.
+
 ## 0.28.0
 - **Welcome tour.** The first time ModTender opens, a short five-screen tour shows which modded games it found and the four things worth knowing: scan and fix, Play and Find broken mod, backups, and staying safe. The last screen lets you pick a game and make a first backup in one click. See it again from Settings → Updates → Show welcome tour.
 

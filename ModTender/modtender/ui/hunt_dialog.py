@@ -5,7 +5,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QDialog, QHBoxLayout, QLabel, QPlainTextEdit, QVBoxLayout
 
 from ..core import bisect
-from . import theme
 from .pages import button
 
 # Games where turning mods off by moving files would lose the player's load order or mod list.

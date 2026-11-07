@@ -307,7 +307,7 @@ class ModsPage(Page):
              "See what's missing or different compared with a server, a friend or a modpack"),
             ("Share my mod list…", win.share_mod_list, "save", "Save a file friends can match their mods to"),
             None,
-            ("Show in Explorer", self._reveal, "folder", "Open the folder with the selected mod"),
+            ("Show in folder", self._reveal, "folder", "Open the folder with the selected mod"),
             ("Open Workshop page", self._workshop, "external", "Open the selected Steam Workshop item on Steam"),
             ("Open mods folder", win.open_mods_folder, "folder", ""),
         ])
@@ -444,7 +444,7 @@ class IssuesPage(Page):
              "Open a crash report or game log and see which mod is likely to blame"),
             ("Find the broken mod…", win.find_broken_mod, "search", "Narrow a crash down to one mod, round by round"),
             None,
-            ("Show mod in Explorer", self._reveal, "folder", ""),
+            ("Show mod in folder", self._reveal, "folder", "Open the folder with the selected mod"),
             ("Save report…", win.export_report, "report", "Save a text report you can share when asking for help"),
             ("Scan again", win.start_scan, "scan", ""),
         ])
@@ -539,6 +539,11 @@ class IssuesPage(Page):
             self.table.selectRow(0)
         else:
             self.fix_one.setEnabled(False)
+            self.detail.setHtml(
+                f"<div style='padding:6px'><p style='font-size:11pt; font-weight:600'>All clear</p>"
+                f"<p style='color:{theme.MUTED}'>ModTender checked {len(self.win.scan.mods)} mods and found nothing "
+                "to fix. If the game still crashes, try <b>More → Read a crash log</b>, or "
+                "<b>Find broken mod</b> on the Dashboard.</p></div>")
 
 
 # ---------------------------------------------------------------- Backups
@@ -551,7 +556,8 @@ class BackupsPage(Page):
         self.actions.addWidget(button("Open folder", win.open_backup_folder, icon_name="folder"))
         self.actions.addWidget(button("Quarantine", win.open_quarantine_folder, icon_name="folder",
                                       tip="Files that Fix moved out of your mods folder"))
-        self.actions.addWidget(button("Back up now", lambda: win.create_backup(), "Primary", "save"))
+        self.backup_now = button("Back up now", lambda: win.create_backup(), "Primary", "save")
+        self.actions.addWidget(self.backup_now)
 
         # Automatic backups for this game
         auto = QHBoxLayout()
@@ -602,11 +608,12 @@ class BackupsPage(Page):
         self.selection_info = QLabel("", objectName="Muted")
         row.addWidget(self.selection_info)
         self.root.addLayout(row)
-        note = QLabel("Each backup only stores mods that changed since the last one, so regular backups take "
+        self.note = note = QLabel("Each backup only stores mods that changed since the last one, so regular backups take "
                       "little extra space. Restoring never deletes anything: your current mods folder is renamed to "
                       "'mods.before-restore-…' first, so you can always go back.", objectName="Muted")
         note.setWordWrap(True)
         self.root.addWidget(note)
+        self.root.addStretch(0)  # keeps things at the top when the list is hidden (Workshop-only games)
         self._loading = False
 
     def _current(self):
@@ -670,8 +677,10 @@ class BackupsPage(Page):
         self.table.setRowCount(0)
         game = self.win.game
         local = bool(game and not game.workshop_only)
-        for w in (self.every, self.on_change, self.rollback, self.auto_hint):
-            w.setVisible(local)
+        for w in (self.every, self.on_change, self.rollback, self.auto_hint, self.auto_label, self.table,
+                  self.changes_btn, self.pin_btn, self.restore_btn, self.delete_btn, self.note):
+            w.setVisible(local or game is None)
+        self.backup_now.setEnabled(local)
         from ..core import license
         self.auto_label.setText("Automatic backups" + ("" if license.is_pro() else "  ·  Pro"))
         if game is None:
@@ -1110,13 +1119,21 @@ class SourcesPage(Page):
         self._game_id = None
 
     def refresh(self):
-        gid = self.win.game.definition.id if self.win.game else "custom"
+        game = self.win.game
+        gid = game.definition.id if game else "custom"
         if gid == "workshop":
-            gid = "custom"
+            gid = f"workshop:{game.id}"
         if gid != self._game_id:  # follow the selected game, but keep a manual choice until it changes
             self._game_id = gid
-            idx = self.choice.findData(gid)
             self.choice.blockSignals(True)
+            if self.choice.itemData(0) == "workshop":
+                self.choice.removeItem(0)
+            if gid.startswith("workshop:"):
+                # A Workshop-only game gets its own entry at the top, instead of showing as "Other games".
+                self.choice.insertItem(0, game.name.replace(" (Steam Workshop)", ""), "workshop")
+                idx = 0
+            else:
+                idx = self.choice.findData(gid)
             self.choice.setCurrentIndex(idx if idx >= 0 else self.choice.count() - 1)
             self.choice.blockSignals(False)
         self._render()
@@ -1179,25 +1196,28 @@ class SourcesPage(Page):
         from ..core.sources import for_game
         data = self.win.mod_sources
         gid = self.choice.currentData() or "custom"
-        entry = for_game(data, gid)
+        entry = for_game(data, "custom" if gid == "workshop" else gid)
         game = self.win.game
-        shown = (game.name.replace(" (Steam Workshop)", "") if game and game.workshop_only and gid == "custom"
-                 else self.choice.currentText())
+        shown = self.choice.currentText() if gid != "custom" else "other games"
         self.subheading.setText(f"Trusted places to download mods for {shown}. "
                                 "ModTender doesn't download anything: these open in your browser.")
         self._clear()
         game = self.win.game
-        own = game and (gid == game.definition.id or (game.workshop_only and gid == "custom"))
-        if game and game.steam_appid and game.workshop_dir and own:
+        own = bool(game and (gid == game.definition.id))
+        shows_workshop = bool(game and game.steam_appid and game.workshop_dir and own)
+        if shows_workshop:
             self.body.addWidget(self._card({
                 "name": "Steam Workshop", "kind": "trusted",
                 "url": f"https://steamcommunity.com/app/{game.steam_appid}/workshop/",
                 "note": "You're subscribed to Workshop mods for this game. Subscribing installs and updates mods for you.",
             }, data.get("kinds", {})))
         for src in entry.get("sources", []):
+            if shows_workshop and src.get("name") == "Steam Workshop":
+                continue  # already shown above, with this game's own Workshop link
             self.body.addWidget(self._card(src, data.get("kinds", {})))
         self.body.addSpacing(6)
-        self._tips("Tips for this game", entry.get("tips", []))
+        name = self.choice.currentText() if gid != "custom" else "your game"
+        self._tips("Tips for this game", [t.replace("<game name>", name) for t in entry.get("tips", [])])
         self.body.addSpacing(6)
         self._tips("Staying safe", data.get("general_tips", []))
         if data.get("updated"):
