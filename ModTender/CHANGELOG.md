@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.26.0
+- **Getting ready for the Microsoft Store.** Each release now also builds a Microsoft Store package. The Store version is signed by Microsoft (no more "Windows protected your PC" warning) and gets its updates from the Store, so its own updater is switched off. The GitHub version keeps updating itself as before.
+- Privacy policy published at github.com/Dirty-Mike-debug/ModTender/blob/main/PRIVACY.md.
+
 ## 0.25.0
 - **Space saver** (Dashboard → More). Finds mod files stored more than once across all your games and packs (for example the same .jar in ATM10 and ATM11) and keeps just one copy on disk using hard links. Every pack still has its own normal file. Only byte-for-byte identical files on the same drive are shared; OneDrive folders and Steam Workshop items are never touched. When a launcher updates a mod later, that pack simply gets its own copy again. **Undo space saver** turns everything back into separate copies.
 

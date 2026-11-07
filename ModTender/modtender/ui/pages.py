@@ -940,8 +940,9 @@ class SettingsPage(Page):
         self.body.addLayout(row)
 
     def _build_updates(self):
-        from ..core.updates import is_app_build
-        kind = "the installed app" if is_app_build() else "the script version (run.bat)"
+        from ..core.updates import is_app_build, is_store_build
+        kind = ("the Microsoft Store version: the Store keeps it up to date" if is_store_build() else
+                "the installed app" if is_app_build() else "the script version (run.bat)")
         self._section("Updates", f"You're running ModTender {__version__}, {kind}."
                       + ("" if is_app_build() else " ModTender is now also a regular Windows app: get "
                          "ModTender-Setup.exe from the release page for Start menu shortcuts and no Python."))
@@ -960,6 +961,10 @@ class SettingsPage(Page):
         self.repo.editingFinished.connect(self._save)
         form.addRow("Release page", self.repo)
         self.body.addLayout(form)
+        if is_store_build():  # the Store handles updates
+            self.auto_update.hide()
+            self.repo.hide()
+            form.labelForField(self.repo).hide() if form.labelForField(self.repo) else None
 
     def _build_users(self):
         self._section("Users", "Everyone on this PC can have their own ModTender settings, theme and games. "

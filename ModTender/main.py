@@ -50,7 +50,9 @@ def main() -> int:
             out = os.environ.get("MODTENDER_SELFTEST_OUT")
             if out:
                 with open(out, "w", encoding="utf-8") as fh:
-                    fh.write(f"ok {window.windowTitle()} pages={len(window.pages)} games={len(window.games)}")
+                    from modtender.core.updates import is_store_build
+                    fh.write(f"ok {window.windowTitle()} pages={len(window.pages)} games={len(window.games)} "
+                             f"store={is_store_build()}")
             app.quit()
 
         QTimer.singleShot(4000, finish)

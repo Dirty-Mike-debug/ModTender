@@ -69,7 +69,7 @@ class MainWindow(QMainWindow):
         self.apply_theme(rebuild=False)
         self._build_ui()
         self.reload_games()
-        if self.settings.check_updates_on_start and self._update_repo():
+        if self.settings.check_updates_on_start and self._update_repo() and not updates.is_store_build():
             QTimer.singleShot(1500, lambda: self.check_for_updates(quiet=True))
         QTimer.singleShot(2500, self._report_finished_update)
         QTimer.singleShot(4000, self._refresh_sources)
@@ -376,6 +376,13 @@ class MainWindow(QMainWindow):
         return self.settings.update_repo or UPDATE_REPO
 
     def check_for_updates(self, quiet: bool = False):
+        if updates.is_store_build():
+            if not quiet:
+                QMessageBox.information(self, "Check for updates",
+                                        f"You're running ModTender {__version__} from the Microsoft Store.\n\n"
+                                        "The Store installs new versions automatically. To update now, open the "
+                                        "Microsoft Store app, go to Library and choose Get updates.")
+            return
         repo = self._update_repo()
         if not repo:
             if not quiet:

@@ -138,6 +138,26 @@ jobs:
           & $iscc "/DMyAppVersion=${{ steps.version.outputs.version }}" installer\ModTender.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Build Microsoft Store package
+        if: steps.version.outputs.exists == 'false'
+        id: msix
+        continue-on-error: true  # a Store packaging problem must never hold back the normal release
+        working-directory: ModTender
+        shell: pwsh
+        run: |
+          python -m pip install pillow
+          python installer\make_msix.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # The Store build has to start from its package layout and know it's the Store build.
+          $env:MODTENDER_SELFTEST_OUT = "$PWD\selftest-store.txt"
+          $env:MODTENDER_DATA = "$PWD\selftest-store-data"
+          $p = Start-Process -FilePath "dist\msix-layout\ModTender\ModTender.exe" -ArgumentList "--self-test" -PassThru
+          if (-not $p.WaitForExit(90000)) { $p.Kill(); throw "The Store build did not close within 90 seconds" }
+          if (-not (Test-Path selftest-store.txt)) { throw "The Store build did not finish its self-test" }
+          $result = Get-Content selftest-store.txt
+          $result
+          if ($result -notmatch "store=True") { throw "The Store build doesn't know it's the Store build" }
+
       - name: Build script-version zip
         if: steps.version.outputs.exists == 'false'
         run: |
@@ -172,7 +192,9 @@ jobs:
           # The zip goes first: ModTender 0.5.x picks the first .zip it finds when updating itself.
           LINUX=""; [ -f "ModTender-$V-linux-x64.tar.gz" ] && LINUX="ModTender-$V-linux-x64.tar.gz"
           printf '**Linux:** download **ModTender-%s-linux-x64.tar.gz**, extract it and run ModTender inside.\n' "$V" >> notes.txt
-          gh release create "v$V" "ModTender-$V.zip" "ModTender/dist/ModTender-Setup-$V.exe" $LINUX \
+          STORE=""; [ -f "ModTender/dist/ModTender-$V-store.msix" ] && STORE="ModTender/dist/ModTender-$V-store.msix"
+          [ -n "$STORE" ] && printf '_ModTender-%s-store.msix is for the Microsoft Store submission, not for installing directly._\n' "$V" >> notes.txt
+          gh release create "v$V" "ModTender-$V.zip" "ModTender/dist/ModTender-Setup-$V.exe" $LINUX $STORE \
             --title "ModTender $V" --notes-file notes.txt
         env:
           GH_TOKEN: ${{ github.token }}

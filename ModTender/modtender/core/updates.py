@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+from pathlib import Path
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -43,6 +44,14 @@ def _plain(markdown: str) -> str:
 def is_app_build() -> bool:
     """True when running as the installed ModTender.exe (PyInstaller), not from Python source."""
     return bool(getattr(sys, "frozen", False))
+
+
+def is_store_build() -> bool:
+    """True for the Microsoft Store version: the Store installs updates, so ModTender doesn't."""
+    if not is_app_build():
+        return False
+    base = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    return (base / "store_build.flag").is_file() or "\\windowsapps\\" in str(Path(sys.executable)).lower()
 
 
 def pick_asset(assets: list[dict]) -> dict:
