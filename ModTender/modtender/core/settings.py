@@ -21,6 +21,7 @@ class Settings:
     check_updates_on_start: bool = False
     backup_before_fix: bool = True
     last_version: str = ""
+    tour_done: bool = False  # the first-run welcome tour was shown
     # Personalization
     text_scale: float = 1.0  # 0.9 / 1.0 / 1.15 / 1.3
     compact: bool = False

@@ -977,6 +977,8 @@ class SettingsPage(Page):
         row.addWidget(button("Check for updates", self.win.check_for_updates, "Primary", "update"))
         row.addWidget(button("Open log folder", self.win.open_log_folder, icon_name="folder",
                              tip="ModTender's log file: useful when asking for help"))
+        row.addWidget(button("Show welcome tour", self.win.show_welcome_tour,
+                             tip="The short introduction ModTender shows the first time it opens"))
         row.addStretch()
         self.body.addLayout(row)
         self.auto_update = QCheckBox("Check for updates when ModTender starts")

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.28.0
+- **Welcome tour.** The first time ModTender opens, a short five-screen tour shows which modded games it found and the four things worth knowing: scan and fix, Play and Find broken mod, backups, and staying safe. The last screen lets you pick a game and make a first backup in one click. See it again from Settings → Updates → Show welcome tour.
+
 ## 0.27.0
 - **ModTender Pro is built in, ready for launch.** Everything that finds and fixes problems stays free. Pro (a one-time purchase through Gumroad, unlocked with the license key from the receipt) adds automatic backups and unlimited backup history, updating all Minecraft mods at once, one-click fixes in Match mods, the Space saver, custom colors, and a Pro badge. One key works on up to 5 PCs, and Pro keeps working offline.
 - Pro isn't on sale yet, so nothing is locked in this version.

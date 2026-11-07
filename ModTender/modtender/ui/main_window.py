@@ -180,6 +180,13 @@ class MainWindow(QMainWindow):
         upd.setCursor(Qt.CursorShape.PointingHandCursor)
         upd.clicked.connect(lambda: self.check_for_updates())
         lay.addWidget(upd)
+        self.get_pro = QPushButton("Get Pro", objectName="Ghost")
+        self.get_pro.setIcon(icon("star", theme.ACCENT))
+        self.get_pro.setIconSize(QSize(14, 14))
+        self.get_pro.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.get_pro.setToolTip("ModTender Pro: automatic backups, update all mods, Space saver, custom colors and more")
+        self.get_pro.clicked.connect(lambda: self.show_upgrade())
+        lay.addWidget(self.get_pro)
         bug = QPushButton("Report a problem", objectName="Ghost")
         bug.setIcon(icon("crash", theme.MUTED))
         bug.setIconSize(QSize(14, 14))
@@ -466,6 +473,8 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Update",
                                 "The last update couldn't be installed, so ModTender kept the previous version. "
                                 "Details:\n\n" + text[-1200:])
+        if not previous and not self.settings.tour_done:
+            QTimer.singleShot(500, self.show_welcome_tour)
         elif previous and previous != __version__:
             self.status(f"Updated to ModTender {__version__}.")
             QMessageBox.information(self, "Update", f"ModTender was updated from {previous} to {__version__}.")
@@ -1074,6 +1083,32 @@ class MainWindow(QMainWindow):
         elif box.clickedButton() is opened:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(report.path)))
 
+    # ------------------------------------------------------------ welcome tour
+
+    def show_welcome_tour(self):
+        from .welcome import WelcomeTour
+        dlg = WelcomeTour(self)
+        accepted = dlg.exec()
+        self.settings.tour_done = True
+        self.save_settings()
+        if not accepted:
+            return
+        wanted = dlg.chosen_game
+        if wanted and (self.game is None or self.game.id != wanted):
+            idx = next((i for i, g in enumerate(self.games) if g.id == wanted), -1)
+            if idx >= 0:
+                self.game_box.setCurrentIndex(idx)
+        self.go("dashboard")
+        if dlg.wants_backup:
+            self._when_idle(lambda: self.create_backup("First backup"))
+
+    def _when_idle(self, fn, tries: int = 120):
+        """Run fn once no task (like the scan after switching games) is running."""
+        if not self._busy:
+            fn()
+        elif tries > 0:
+            QTimer.singleShot(1000, lambda: self._when_idle(fn, tries - 1))
+
     # ------------------------------------------------------------ ModTender Pro
 
     FREE_BACKUPS = 5
@@ -1087,6 +1122,8 @@ class MainWindow(QMainWindow):
         from ..core import license
         pro = license.on_sale() and license.is_pro()
         self.version_label.setText(f"   Version {__version__}" + ("  ·  PRO" if pro else ""))
+        if hasattr(self, "get_pro"):
+            self.get_pro.setVisible(license.on_sale() and not license.is_pro())
 
     def require_pro(self, feature: str) -> bool:
         """True when Pro is unlocked; otherwise offer the upgrade and return False."""

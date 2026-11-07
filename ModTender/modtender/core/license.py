@@ -22,9 +22,9 @@ from . import paths
 from .log import log
 
 # ---- fill these in once the Gumroad product exists --------------------------------------
-PRODUCT_ID = os.environ.get("MODTENDER_GUMROAD_PRODUCT", "")  # Gumroad: product → Content → License key
-CHECKOUT_URL = os.environ.get("MODTENDER_GUMROAD_URL", "")  # e.g. https://<name>.gumroad.com/l/modtender-pro
-PRICE = os.environ.get("MODTENDER_PRO_PRICE", "")  # shown in the app, e.g. "$6"
+PRODUCT_ID = os.environ.get("MODTENDER_GUMROAD_PRODUCT", "")  # goes live: "bCY5kByJT_3fJgK-p7Wecw=="  # Gumroad: product → Content → License key
+CHECKOUT_URL = os.environ.get("MODTENDER_GUMROAD_URL", "")  # goes live: "https://pearce76.gumroad.com/l/modtender-pro"  # e.g. https://<name>.gumroad.com/l/modtender-pro
+PRICE = os.environ.get("MODTENDER_PRO_PRICE", "")  # goes live: "$5 or more (you choose)"  # shown in the app, e.g. "$6"
 # -------------------------------------------------------------------------------------------
 
 VERIFY_URL = "https://api.gumroad.com/v2/licenses/verify"
