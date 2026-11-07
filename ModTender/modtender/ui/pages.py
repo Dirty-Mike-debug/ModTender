@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
-    QAbstractItemView, QCheckBox, QColorDialog, QComboBox, QFileDialog, QFormLayout, QGridLayout,
+    QAbstractItemView, QCheckBox, QColorDialog, QComboBox, QFileDialog, QFormLayout, QFrame, QGridLayout,
     QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton,
     QScrollArea, QSpinBox, QSplitter, QTableWidget, QTextBrowser, QVBoxLayout, QWidget,
 )
@@ -41,6 +41,34 @@ def button(text: str, slot, kind: str = "", icon_name: str = "", tip: str = "") 
     b.setCursor(Qt.CursorShape.PointingHandCursor)
     b.setMinimumWidth(b.sizeHint().width() + 6)  # never squash the label ("Quarantin…")
     return b
+
+
+def more_button(items) -> tuple[QPushButton, dict]:
+    """A 'More' button with a menu, for actions that don't need to be on screen all the time.
+    items: (label, slot, icon name, tooltip) tuples, or None for a separator.
+    Returns the button and {label: QAction} so callers can show or hide entries."""
+    from PySide6.QtWidgets import QMenu
+    b = QPushButton("More", objectName="More")
+    b.setIcon(icon("more"))
+    b.setIconSize(QSize(15, 15))
+    b.setCursor(Qt.CursorShape.PointingHandCursor)
+    b.setToolTip("More actions")
+    menu = QMenu(b)
+    actions = {}
+    for item in items:
+        if item is None:
+            menu.addSeparator()
+            continue
+        label, slot, icon_name, tip = item
+        act = menu.addAction(icon(icon_name, theme.MUTED), label)
+        act.triggered.connect(lambda _=False, f=slot: f())
+        if tip:
+            act.setToolTip(tip)
+        actions[label] = act
+    menu.setToolTipsVisible(True)
+    b.setMenu(menu)
+    b.setMinimumWidth(b.sizeHint().width() + 6)
+    return b, actions
 
 
 def make_table(headers: list[str]) -> QTableWidget:
@@ -112,11 +140,11 @@ class DashboardPage(Page):
 
     def __init__(self, win):
         super().__init__(win)
-        self.actions.addWidget(button("Find broken mod", win.find_broken_mod, icon_name="search",
-                                      tip="Something crashing or broken? Find which mod causes it, round by round"))
-        self.actions.addWidget(button("Open folder", win.open_mods_folder, icon_name="folder"))
-        self.actions.addWidget(button("Report", win.export_report, icon_name="report",
-                                      tip="Save a text report you can share when asking for help"))
+        more, _ = more_button([
+            ("Open mods folder", win.open_mods_folder, "folder", ""),
+            ("Save report…", win.export_report, "report", "Save a text report you can share when asking for help"),
+        ])
+        self.actions.addWidget(more)
         self.actions.addWidget(button("Back up", win.create_backup, icon_name="save"))
         self.actions.addWidget(button("Scan", win.start_scan, "Primary", "scan"))
 
@@ -134,6 +162,23 @@ class DashboardPage(Page):
         for c in (1, 2, 3):
             grid.setColumnStretch(c, 4)
         self.root.addLayout(grid)
+
+        hint = QFrame(objectName="Hint")
+        hl = QHBoxLayout(hint)
+        hl.setContentsMargins(16, 10, 12, 10)
+        hl.setSpacing(12)
+        mark = QLabel()
+        mark.setPixmap(icon("search", theme.ACCENT, 20).pixmap(20, 20))
+        hl.addWidget(mark)
+        words = QVBoxLayout()
+        words.setSpacing(1)
+        words.addWidget(QLabel("Game crashing or something not working?", objectName="CardTitle"))
+        words.addWidget(QLabel("ModTender can find which mod is causing it, a few rounds at a time.",
+                               objectName="CardSub", wordWrap=True))
+        hl.addLayout(words, 1)
+        hl.addWidget(button("Find broken mod", win.find_broken_mod, icon_name="search",
+                            tip="Turns mods off in halves while you test the game, until only the cause is left"))
+        self.root.addWidget(hint)
 
         row = QHBoxLayout()
         row.addWidget(QLabel("Top issues", objectName="Section"))
@@ -234,12 +279,14 @@ class ModsPage(Page):
 
     def __init__(self, win):
         super().__init__(win)
+        more, self.more_actions = more_button([
+            ("Show in Explorer", self._reveal, "folder", "Open the folder with the selected mod"),
+            ("Open Workshop page", self._workshop, "external", "Open the selected Steam Workshop item on Steam"),
+            ("Open mods folder", win.open_mods_folder, "folder", ""),
+        ])
+        self.actions.addWidget(more)
         self.actions.addWidget(button("Install mod", win.choose_mods_to_install, icon_name="plus",
                                       tip="Install downloaded mods. You can also drag files onto this window."))
-        self.actions.addWidget(button("Show in Explorer", self._reveal, icon_name="folder"))
-        self.ws_button = button("Workshop page", self._workshop, icon_name="external",
-                                tip="Open the selected Steam Workshop item on Steam")
-        self.actions.addWidget(self.ws_button)
         self.upd_button = button("Mod updates", win.check_mod_updates, icon_name="update",
                                  tip="Look up newer versions of these mods on Modrinth")
         self.actions.addWidget(self.upd_button)
@@ -291,7 +338,7 @@ class ModsPage(Page):
         scan = self.win.scan
         self.table.setSortingEnabled(False)
         self.table.setRowCount(0)
-        self.ws_button.setVisible(bool(scan and any(m.workshop for m in scan.mods)))
+        self.more_actions["Open Workshop page"].setVisible(bool(scan and any(m.workshop for m in scan.mods)))
         self.upd_button.setVisible(bool(scan and scan.game.definition.id == "minecraft"))
         if scan is None:
             self.subheading.setText("Scan a game to see its mods.")
@@ -348,11 +395,16 @@ class IssuesPage(Page):
 
     def __init__(self, win):
         super().__init__(win)
-        self.actions.addWidget(button("Report", win.export_report, icon_name="report"))
-        self.actions.addWidget(button("Show mod", self._reveal, icon_name="folder"))
-        self.actions.addWidget(button("Read crash log", win.read_crash_log, icon_name="crash",
-                                      tip="Open a crash report or game log and see which mod is likely to blame"))
-        self.actions.addWidget(button("Re-scan", win.start_scan, icon_name="scan"))
+        more, _ = more_button([
+            ("Read a crash log…", win.read_crash_log, "crash",
+             "Open a crash report or game log and see which mod is likely to blame"),
+            ("Find the broken mod…", win.find_broken_mod, "search", "Narrow a crash down to one mod, round by round"),
+            None,
+            ("Show mod in Explorer", self._reveal, "folder", ""),
+            ("Save report…", win.export_report, "report", "Save a text report you can share when asking for help"),
+            ("Scan again", win.start_scan, "scan", ""),
+        ])
+        self.actions.addWidget(more)
         self.fix_one = button("Fix", self._fix, icon_name="fix", tip="Apply the fix for the selected issue")
         self.actions.addWidget(self.fix_one)
         self.fix_all = button("Fix all", win.fix_all, "Primary", "fix",

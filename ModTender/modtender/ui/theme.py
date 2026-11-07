@@ -192,6 +192,13 @@ QStatusBar {{ background: {p.sidebar}; color: {p.muted}; border-top: 1px solid {
 QStatusBar::item {{ border: none; }}
 QProgressBar {{ background: {p.border}; border: none; border-radius: 3px; max-height: 6px; }}
 QProgressBar::chunk {{ background: {p.accent}; border-radius: 3px; }}
+QMenu {{ background: {p.surface}; color: {p.text}; border: 1px solid {p.border}; border-radius: 8px; padding: 6px; }}
+QMenu::item {{ padding: 7px 26px 7px 12px; border-radius: 5px; }}
+QMenu::item:selected {{ background: {hover}; }}
+QMenu::icon {{ padding-left: 8px; }}
+QMenu::separator {{ height: 1px; background: {p.border}; margin: 5px 8px; }}
+QPushButton#More::menu-indicator {{ image: none; width: 0; }}
+QFrame#Hint {{ background: {p.surface}; border: 1px solid {p.border}; border-radius: 10px; }}
 QToolTip {{ background: {p.surface}; color: {p.text}; border: 1px solid {p.border}; padding: 6px 8px; border-radius: 4px; }}
 QMessageBox, QInputDialog {{ background: {p.bg}; }}
 """

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.1
+- Tidier pages: less-used buttons (open folder, save report, show in Explorer, Workshop page, read crash log, scan again) moved into a **More** menu on the Dashboard, Mods and Issues pages.
+- **Find broken mod** now has its own card on the Dashboard, under the stats.
+
 ## 0.16.0
 - **Find the broken mod.** New on the Dashboard. When something crashes or breaks and the logs don't say why, ModTender turns mods off in halves, you start the game and say whether the problem still happens, and it narrows down to the one mod causing it: about 11 rounds for 500 mods. The first round checks whether it's a mod at all, the last confirms the result. Mods that other mods need are turned off together, so you never get "missing dependency" errors along the way. Progress is saved, so you can close ModTender and carry on later, and Stop always puts everything back. Works for Minecraft, Farming Simulator, Stardew Valley, Valheim, Cyberpunk, Witcher 3, The Sims 4 and custom games. Not yet for Skyrim, Fallout 4, Baldur's Gate 3, RimWorld and the truck sims, because moving their mods would scramble their load order or mod list.
 - Minecraft mods now record which other mods they need.
