@@ -14,6 +14,6 @@ For anything else, use "Add game" and pick the mods folder.
 Notes for this test build:
 - Settings and backups live in ~/.local/share/ModTender.
 - Virus scanning uses ClamAV if it's installed (sudo apt install clamav). Without it, mods aren't checked.
-- "Check for updates" opens the download for the new version in your browser; extract it over this folder.
+- "Check for updates" downloads and installs new versions by itself, then restarts ModTender.
 - If it won't start, run it from a terminal and send the error to the developer, or use
   "Report a problem" in the sidebar.

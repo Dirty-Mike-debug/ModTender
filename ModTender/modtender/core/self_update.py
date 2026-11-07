@@ -52,9 +52,73 @@ def _fetch(url: str, dest: Path, label: str, expected: int, progress) -> None:
         raise UpdateError("The download was incomplete. Please try again.")
 
 
+def linux_app_dir() -> Path:
+    """The folder of the Linux app build (it holds the ModTender program and _internal)."""
+    return Path(sys.executable).resolve().parent
+
+
+def _download_linux(info: UpdateInfo, progress=None) -> Path:
+    import tarfile
+    app = linux_app_dir()
+    if not os.access(app.parent, os.W_OK):
+        raise UpdateError(f"ModTender can't update itself because it can't write to {app.parent}. "
+                          "Move the ModTender folder somewhere in your home folder, or update it by hand.")
+    folder = paths.data_dir() / "updates"
+    shutil.rmtree(folder, ignore_errors=True)
+    folder.mkdir(parents=True)
+    archive = folder / f"ModTender-{info.latest}-linux.tar.gz"
+    _fetch(info.asset_url, archive, f"Downloading ModTender {info.latest}…", info.asset_size, progress)
+    if progress:
+        progress(92, "Checking the download…")
+    new = folder / "new"
+    try:
+        with tarfile.open(archive) as tf:
+            for member in tf.getmembers():
+                if member.name.startswith(("/", "..")) or ".." in Path(member.name).parts:
+                    raise UpdateError("The download contains unsafe paths, so it wasn't installed.")
+            tf.extractall(new)
+    except (tarfile.TarError, EOFError) as exc:
+        raise UpdateError("The download is damaged. Please try again.") from exc
+    root = next((p.parent for p in new.rglob("ModTender") if p.is_file() and (p.parent / "_internal").is_dir()), None)
+    if root is None:
+        raise UpdateError("The download doesn't look like a ModTender Linux release.")
+    archive.unlink(missing_ok=True)
+    log.info("Linux update %s unpacked to %s", info.latest, root)
+    if progress:
+        progress(100, "Update downloaded")
+    return root
+
+
+LINUX_INSTALLER = """#!/bin/sh
+# Finish a ModTender update on Linux: wait for the app to close, swap folders, start it again.
+PID="$1"; NEW="$2"; APP="$3"; LOG="$4"
+i=0
+while kill -0 "$PID" 2>/dev/null && [ $i -lt 300 ]; do sleep 0.2; i=$((i+1)); done
+{
+  echo "$(date '+%H:%M:%S') installing $NEW into $APP"
+  rm -rf "$APP.previous"
+  if mv "$APP" "$APP.previous"; then
+    if mv "$NEW" "$APP" 2>/dev/null || cp -a "$NEW" "$APP"; then
+      chmod +x "$APP/ModTender"
+      rm -rf "$APP.previous"
+      echo "update complete, restarting"
+    else
+      echo "UPDATE FAILED: couldn't put the new version in place"
+      rm -rf "$APP"; mv "$APP.previous" "$APP"; echo "restored the previous version"
+    fi
+  else
+    echo "UPDATE FAILED: couldn't move the old version aside"
+  fi
+} >> "$LOG" 2>&1
+cd "$HOME" && nohup "$APP/ModTender" >/dev/null 2>&1 &
+"""
+
+
 def download_update(info: UpdateInfo, progress=None) -> Path:
     if not info.asset_url:
         raise UpdateError("This release has no download for your version of ModTender.")
+    if is_app_build() and sys.platform != "win32":
+        return _download_linux(info, progress)
     if is_app_build():
         folder = paths.data_dir() / "updates"
         shutil.rmtree(folder, ignore_errors=True)
@@ -191,6 +255,13 @@ finally:
 def launch_installer(new_root: Path) -> None:
     """Start the helper that finishes the update once this process exits. Call, then quit the app."""
     log.info("Starting installer, ModTender will restart")
+    if is_app_build() and sys.platform != "win32":
+        script = paths.data_dir() / "updates" / "install_update.sh"
+        script.write_text(LINUX_INSTALLER, encoding="utf-8")
+        script.chmod(0o755)
+        subprocess.Popen(["/bin/sh", str(script), str(os.getpid()), str(new_root), str(linux_app_dir()),
+                          str(_linux_log())], start_new_session=True, close_fds=True)
+        return
     if is_app_build():
         # Inno Setup: silent per-user install; its [Run] entry starts ModTender again afterwards.
         # FORCECLOSE: older ModTender windows left open must not block the update.
@@ -208,9 +279,13 @@ def launch_installer(new_root: Path) -> None:
                      cwd=str(STAGE), creationflags=flags, close_fds=True)
 
 
+def _linux_log() -> Path:
+    return paths.data_dir() / "update.log"
+
+
 def pop_update_log() -> str:
     """The log from the last update (if one just happened), removed once read."""
-    log = STAGE / "update.log"
+    log = _linux_log() if is_app_build() and sys.platform != "win32" else STAGE / "update.log"
     try:
         text = log.read_text(encoding="utf-8")
         log.unlink()

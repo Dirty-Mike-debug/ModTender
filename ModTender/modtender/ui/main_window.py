@@ -410,8 +410,8 @@ class MainWindow(QMainWindow):
         self._run("Checking for updates…", updates.check_for_update, repo, on_done=done, on_fail=fail)
 
     def _install_update(self, info):
-        if sys.platform != "win32":
-            # On Linux ModTender can't replace itself yet: open the download instead.
+        if sys.platform != "win32" and not (updates.is_app_build() or self_update.can_self_update()):
+            # Can't replace itself here: open the download instead.
             QDesktopServices.openUrl(QUrl(info.asset_url or info.url))
             QMessageBox.information(self, "Update", f"Your browser is downloading ModTender {info.latest}. "
                                     "Extract it over your current ModTender folder (your settings are kept), "
@@ -422,7 +422,7 @@ class MainWindow(QMainWindow):
                 self, "Installing update",
                 f"ModTender {info.latest} is downloaded.\n\nModTender will close, install the update and "
                 "open again by itself in a few seconds. Your settings, backups and mods aren't touched."
-                + ("\n\nIf Windows asks whether to allow the installer, choose Yes." if updates.is_app_build() else ""))
+                + ("\n\nIf Windows asks whether to allow the installer, choose Yes." if updates.is_app_build() and sys.platform == "win32" else ""))
             try:
                 self_update.launch_installer(new_root)
             except OSError as exc:

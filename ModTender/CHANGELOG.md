@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.23.0
+- **Automatic updates on Linux.** Check for updates → Update now downloads the new Linux version, checks it, swaps it in and restarts ModTender, just like on Windows. If anything goes wrong, the previous version is put back. (Linux users on 0.21 or 0.22 need to update by hand once to get this.)
+
 ## 0.22.0
 - **Deadlock support.** Finds your mods in Deadlock\game\citadel\addons and checks the three things that stop them working:
   - **gameinfo.gi not set up**: every Deadlock update puts the original file back, which switches all mods off. ModTender spots it and can add the line for you (keeping a backup), or you can use Deadlock Mod Manager's Launch Modded.
