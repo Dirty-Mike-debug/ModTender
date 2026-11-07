@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.22.0
+- **Deadlock support.** Finds your mods in Deadlock\game\citadel\addons and checks the three things that stop them working:
+  - **gameinfo.gi not set up**: every Deadlock update puts the original file back, which switches all mods off. ModTender spots it and can add the line for you (keeping a backup), or you can use Deadlock Mod Manager's Launch Modded.
+  - **Wrong file names**: Deadlock only loads pak01_dir.vpk to pak99_dir.vpk. Fix renames mods (and their _000 parts) to free numbers and remembers their original names, so the Mods page still shows "CoolHUD" instead of pak04_dir.vpk.
+  - **Mods that change the same files**: ModTender reads inside each .vpk and tells you which mod wins (lower numbers win).
+- Drag a .vpk or a GameBanana zip onto ModTender and it's named correctly and placed in addons automatically.
+- Deadlock added to game update warnings and Get mods. Find broken mod works for Deadlock too.
+
 ## 0.21.0
 - **Linux test build.** Download ModTender-<version>-linux-x64.tar.gz, extract it and run ModTender. It finds Steam (native, Debian/Ubuntu and Flatpak), Workshop mods, mod folders inside Proton for Windows games (Farming Simulator, Arma Reforger, The Sims 4...), and ~/.minecraft. Settings live in ~/.local/share/ModTender. Virus scanning uses ClamAV if it's installed.
 - The script version now includes run.sh for Linux and macOS.

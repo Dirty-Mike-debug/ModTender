@@ -406,6 +406,8 @@ def scan_game(game: Game, deep: bool = False, progress=None) -> ScanResult:
             progress(i * 100 / total, f"Checking {entry.name}")
         if entry.name.startswith(".") or entry.name.lower() in {"desktop.ini", "thumbs.db"}:
             continue
+        if gdef.id == "deadlock" and re.match(r"^.+_\d{3}\.vpk$", entry.name, re.I):
+            continue  # data part of a bigger Deadlock mod (pak03_000.vpk): it belongs to pak03_dir.vpk
         if gdef.folder_prefix and origin == "local" and not entry.name.startswith(gdef.folder_prefix):
             continue  # e.g. Arma 3's own folders next to its @mods
         try:
@@ -455,4 +457,10 @@ def scan_game(game: Game, deep: bool = False, progress=None) -> ScanResult:
              game.mods_dir, len(mods), sum(not m.enabled for m in mods), sum(m.workshop for m in mods), len(strays))
     if progress:
         progress(100, "Scan complete")
+    from .labels import get as get_labels
+    names = get_labels(game.id)
+    if names:
+        for m in mods:
+            if not m.title and m.name in names:
+                m.title = names[m.name]
     return ScanResult(game, mods, strays, datetime.now(), folder_missing)

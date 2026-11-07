@@ -129,6 +129,12 @@ def apply_fix(game: Game, issue: Issue) -> list[str]:
     if a == "mkdir":
         game.mods_dir.mkdir(parents=True, exist_ok=True)
         return [f"Created {game.mods_dir}"]
+    if a == "deadlock_gameinfo":
+        from .deadlock import enable_addons
+        return [enable_addons(game.mods_dir)]
+    if a == "deadlock_rename":
+        from .deadlock import apply_renames
+        return apply_renames(game, p["pairs"])
     if a == "ack_game_update":
         from .gamepatch import acknowledge
         acknowledge(p["key"], p["build"])

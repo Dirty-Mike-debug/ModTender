@@ -19,7 +19,7 @@ APP_IDS = {
     "fs25": 2300320, "fs22": 1248130, "stardew": 413150, "skyrimse": 489830, "fallout4": 377160,
     "witcher3": 292030, "cyberpunk": 1091500, "bg3": 1086940, "valheim": 892970, "rimworld": 294100,
     "ets2": 227300, "ats": 270880, "sims4": 1222670, "cs2": 949230, "snowrunner": 1465360,
-    "arma3": 107410, "reforger": 1874880,
+    "arma3": 107410, "reforger": 1874880, "deadlock": 1422450,
 }
 
 # What tends to break after a patch, per game: (what to look for, advice).
@@ -51,6 +51,10 @@ RISKS = {
     "fs22": ("Script mods",
              "Most Farming Simulator mods keep working, but mods with scripts can break after a patch. "
              "Check ModHub for updates if something stops working."),
+    "deadlock": ("Every mod, until gameinfo.gi is set up again",
+                 "Deadlock updates put the original gameinfo.gi back, which switches all mods off. ModTender "
+                 "flags it on the Issues page with a one-click fix. HUD and hero mods may also need updates "
+                 "from GameBanana after big patches."),
     "arma3": ("Mods built on CBA_A3 and ACE, and mods with .dll extensions",
               "After a big Arma 3 update, wait for CBA_A3 and ACE to update first; most other mods depend on "
               "them. Servers usually update on their own schedule, so check your group's announcements."),

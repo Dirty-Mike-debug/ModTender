@@ -9,6 +9,7 @@ ModTender works out what the download is and where its parts belong:
 Anything already there with the same name is moved to ModTender's quarantine first, never overwritten."""
 from __future__ import annotations
 
+import re
 import shutil
 import zipfile
 from dataclasses import dataclass, field
@@ -109,9 +110,11 @@ def _install_one(game, src: Path, result: InstallResult) -> None:
         usable = [m for m in members if PurePosixPath(m).suffix.lower() in exts]
         if not usable:
             raise InstallError(f"nothing inside this zip is a file {game.name} uses.")
+        main = [m for m in usable if not re.match(r"^.+_\d{3}\.vpk$", PurePosixPath(m).name, re.I)]
         for m in usable:
-            _extract(game, zf, m, game.mods_dir / PurePosixPath(m).name, result)
-            result.installed.append(PurePosixPath(m).name)
+            hint = src.stem if len(main) == 1 else ""  # one mod in the zip: name it after the download
+            _extract(game, zf, m, game.mods_dir / PurePosixPath(m).name, result, hint=hint)
+            result.installed.append(f"{src.stem} ({PurePosixPath(m).name})" if hint else PurePosixPath(m).name)
 
 
 def _cyberpunk(game, src, zf, members, result) -> None:
@@ -213,14 +216,38 @@ def _move_aside(game, target: Path, result: InstallResult) -> None:
         result.replaced.append(target.name)
 
 
+def _deadlock_name(game, dest: Path, hint: str = "") -> Path:
+    """Deadlock only loads pak01_dir.vpk..pak99_dir.vpk: pick a free number, keep the original name as a label."""
+    if game.definition.id != "deadlock" or dest.suffix.lower() != ".vpk":
+        return dest
+    from .deadlock import VALID, PART, next_free, used_numbers
+    if PART.match(dest.name):
+        return dest  # a data part (_000.vpk): handled by the Issues page rename
+    taken = used_numbers(dest.parent)
+    if VALID.match(dest.name) and not dest.exists():
+        return dest
+    n = next_free(taken)
+    if n is None:
+        raise InstallError("Deadlock can only load 99 mods (pak01 to pak99), and all numbers are used.")
+    new = dest.with_name(f"pak{n:02d}_dir.vpk")
+    from .labels import set_label
+    label = hint or ("" if VALID.match(dest.name) else re.sub(r"_dir$", "", dest.stem))
+    if label:
+        set_label(game.id, new.name, label)
+    return new
+
+
 def _copy(game, src: Path, dest: Path, result: InstallResult) -> None:
+    dest = _deadlock_name(game, dest)
     if src.resolve() == dest.resolve():
         raise InstallError("it's already in the mods folder")
     _move_aside(game, dest, result)
     shutil.copy2(src, dest)
 
 
-def _extract(game, zf: zipfile.ZipFile, member: str, dest: Path, result: InstallResult, aside: bool = True) -> None:
+def _extract(game, zf: zipfile.ZipFile, member: str, dest: Path, result: InstallResult, aside: bool = True,
+             hint: str = "") -> None:
+    dest = _deadlock_name(game, dest, hint)
     if aside:
         _move_aside(game, dest, result)
     dest.parent.mkdir(parents=True, exist_ok=True)

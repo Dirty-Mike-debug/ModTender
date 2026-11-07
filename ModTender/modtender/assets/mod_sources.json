@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-06 17:07",
+ "updated": "2026-11-06 17:28",
  "kinds": {
   "official": "Official",
   "trusted": "Trusted community site",
@@ -545,6 +545,26 @@
    "tips": [
     "Joining a modded server downloads its mods automatically. If that fails, compare with the server's config.json in Match mods.",
     "Mods only work with the game version they're updated for. After a game update, wait for mods to update."
+   ]
+  },
+  "deadlock": {
+   "sources": [
+    {
+     "name": "GameBanana",
+     "kind": "trusted",
+     "url": "https://gamebanana.com",
+     "note": "Where nearly all Deadlock mods (skins, HUDs, sounds) are published. Search for Deadlock."
+    },
+    {
+     "name": "Deadlock Mod Manager",
+     "kind": "trusted",
+     "url": "https://deadlockmods.app",
+     "note": "Open-source app that installs GameBanana mods. ModTender works alongside it."
+    }
+   ],
+   "tips": [
+    "Only cosmetic mods are allowed. Mods that change gameplay can get your account banned.",
+    "After every Deadlock update, mods stop loading until gameinfo.gi is set up again. ModTender flags this."
    ]
   }
  }

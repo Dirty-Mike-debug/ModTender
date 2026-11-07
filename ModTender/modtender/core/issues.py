@@ -28,7 +28,7 @@ STRAY_HINTS = {
 # (e.g. remove an extra copy before renaming anything).
 ACTION_ORDER = {"mkdir": 0, "quarantine_mod": 1, "dedupe": 2, "keep_newest": 3, "unpack": 4,
                 "rezip": 5, "rename": 6, "quarantine_files": 7, "enable": 8, "disable": 9, "search": 10,
-                "open_url": 11, "ack_game_update": 12}
+                "open_url": 11, "ack_game_update": 12, "deadlock_rename": 3, "deadlock_gameinfo": 13}
 
 WORKSHOP_FIX = ("Steam manages Workshop mods, so ModTender doesn't move them. Open the item on Steam and "
                 "unsubscribe to remove it, or unsubscribe and subscribe again to re-download it.")
@@ -306,6 +306,9 @@ def analyze(scan: ScanResult) -> list[Issue]:
         elif gdef.id == "cyberpunk":
             from .cyberpunk import analyze_cyberpunk
             found = analyze_cyberpunk(game.mods_dir)
+        elif gdef.id == "deadlock":
+            from .deadlock import analyze_deadlock
+            found = analyze_deadlock(scan.mods, game.mods_dir)
         elif gdef.id == "arma3":
             from .arma import analyze_arma3
             found = analyze_arma3(scan.mods)
@@ -336,7 +339,7 @@ def analyze(scan: ScanResult) -> list[Issue]:
         params = d.get("params") or ({"url": url} if url else {})
         label = d.get("action_label") or ("Open the Archive Conflict Checker on Nexus Mods" if url else "")
         issues.append(Issue(d["severity"], d["title"], d["detail"], d["fix"], d.get("mods", []),
-                            action=action, params=params, safe=False, action_label=label))
+                            action=action, params=params, safe=bool(d.get("safe", False)), action_label=label))
 
     try:
         from .virusscan import flagged_mods

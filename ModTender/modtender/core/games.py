@@ -72,6 +72,8 @@ KNOWN_GAMES: tuple[GameDef, ...] = (
     GameDef("sims4", "The Sims 4", ("{documents}/Electronic Arts/The Sims 4/Mods",),
             extensions=(".package", ".ts4script", ".cfg"), protected_rule=r"^Resource\.cfg$"),
     GameDef("cs2", "Cities: Skylines II", ("{locallow}/Colossal Order/Cities Skylines II/Mods",), allows_dll=True),
+    GameDef("deadlock", "Deadlock", ("{steam:Deadlock}/game/citadel/addons",), extensions=(".vpk",),
+            allow_folders=False),
     GameDef("arma3", "Arma 3", ("{steam:Arma 3}",), allows_dll=True, steam_appid=107410, folders_only=True,
             folder_prefix="@"),
     GameDef("reforger", "Arma Reforger", ("{documents}/My Games/ArmaReforger/addons",), folders_only=True),
