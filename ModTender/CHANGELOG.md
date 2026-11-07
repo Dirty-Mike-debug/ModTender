@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.21.0
+- **Linux test build.** Download ModTender-<version>-linux-x64.tar.gz, extract it and run ModTender. It finds Steam (native, Debian/Ubuntu and Flatpak), Workshop mods, mod folders inside Proton for Windows games (Farming Simulator, Arma Reforger, The Sims 4...), and ~/.minecraft. Settings live in ~/.local/share/ModTender. Virus scanning uses ClamAV if it's installed.
+- The script version now includes run.sh for Linux and macOS.
+
 ## 0.20.0
 - **Arma 3 support.** Finds your Steam Workshop mods and local @mods in the game folder, with names read from each mod's meta.cpp / mod.cpp. Warns when two mods contain the same addon (.pbo), which usually means a library like CBA is loaded twice, and when mods have no signing key (.bikey), which gets you kicked from servers that verify signatures. Crash logs (.rpt) are read too, including "addon X requires addon Y" errors.
 - **Arma Reforger support.** Finds your Workshop downloads in Documents\My Games\ArmaReforger\addons and reads each mod's name, version and dependencies from ServerData.json. Flags missing dependencies (with a link to the Reforger Workshop) and mods that didn't finish downloading. Reads Reforger's logs after a crash.

@@ -211,6 +211,25 @@ def _amsi_scan(path: Path) -> ScanResult:
         amsi.close()
 
 
+# ---------------------------------------------------------------- ClamAV (Linux)
+
+def _clamav_scan(path: Path) -> ScanResult:
+    import shutil as _sh
+    exe = _sh.which("clamdscan") or _sh.which("clamscan")
+    if not exe:
+        return ScanResult(UNAVAILABLE, detail="No virus scanner found. Install ClamAV (clamscan) to check mods.")
+    try:
+        proc = subprocess.run([exe, "--no-summary", str(path)], capture_output=True, text=True, timeout=1800)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return ScanResult(ERROR, engine="ClamAV", detail=str(exc))
+    if proc.returncode == 1:
+        m = re.search(r":\s*(.+?)\s+FOUND", proc.stdout)
+        return ScanResult(THREAT, m.group(1) if m else "a threat", "ClamAV", path.name)
+    if proc.returncode == 0:
+        return ScanResult(CLEAN, engine="ClamAV")
+    return ScanResult(ERROR, engine="ClamAV", detail=(proc.stderr or proc.stdout).strip()[-200:])
+
+
 # ---------------------------------------------------------------- scanning
 
 def scan_file(path: Path) -> ScanResult:
@@ -218,6 +237,10 @@ def scan_file(path: Path) -> ScanResult:
     global _defender_ok
     path = Path(path)
     now = datetime.now().isoformat(timespec="seconds")
+    if sys.platform != "win32":
+        result = _clamav_scan(path)
+        result.date = now
+        return result
     if _defender_ok is not False:
         code, out = _run_defender(path)
         status, found = parse_defender(code, out)

@@ -123,10 +123,18 @@ def _steam_roots() -> list[Path]:
                     continue
         except ImportError:
             pass
-    roots += [Path(r"C:\Program Files (x86)\Steam"), Path(r"C:\Program Files\Steam")]
+    if paths.IS_WINDOWS:
+        roots += [Path(r"C:\Program Files (x86)\Steam"), Path(r"C:\Program Files\Steam")]
+    else:  # Linux: native, Debian/Ubuntu package, Flatpak
+        h = paths.HOME
+        roots += [h / ".steam" / "steam", h / ".local" / "share" / "Steam", h / ".steam" / "root",
+                  h / ".var" / "app" / "com.valvesoftware.Steam" / ".local" / "share" / "Steam"]
     seen, unique = set(), []
     for r in roots:
-        key = str(r).lower().replace("/", "\\")
+        try:
+            key = str(r.resolve()).lower().replace("/", "\\")
+        except OSError:
+            key = str(r).lower().replace("/", "\\")
         if key not in seen and r.exists():
             seen.add(key)
             unique.append(r)
@@ -154,11 +162,24 @@ def steam_libraries() -> list[Path]:
     return unique
 
 
-def _resolve_template(template: str, libraries: list[Path]) -> list[Path]:
+def _resolve_template(template: str, libraries: list[Path], appid: int = 0) -> list[Path]:
     m = re.match(r"\{steam:([^}]+)\}(.*)", template)
     if m:
         folder, rest = m.groups()
         return [Path(str(lib / "steamapps" / "common" / folder) + rest) for lib in libraries]
+    if not paths.IS_WINDOWS:
+        if template.startswith("{appdata}/.minecraft"):
+            return [paths.HOME / ".minecraft" / template[len("{appdata}/.minecraft/"):]]
+        if appid and re.match(r"\{(documents|appdata|localappdata|locallow)\}", template):
+            # A Windows game running through Proton keeps its "Windows" folders inside Steam's prefix.
+            out = []
+            for lib in libraries:
+                user = lib / "steamapps" / "compatdata" / str(appid) / "pfx" / "drive_c" / "users" / "steamuser"
+                for docs in (user / "Documents", user / "My Documents"):
+                    out.append(Path(template.format(documents=docs, appdata=user / "AppData" / "Roaming",
+                                                    localappdata=user / "AppData" / "Local",
+                                                    locallow=user / "AppData" / "LocalLow", home=user)))
+            return out
     expanded = template.format(
         documents=paths.DOCUMENTS, appdata=paths.APPDATA, localappdata=paths.LOCALAPPDATA,
         locallow=paths.LOCALLOW, home=paths.HOME,
@@ -202,9 +223,11 @@ def detect_games(custom_games: list[dict] | None = None) -> list[Game]:
     workshops = steam_workshops(libraries)
     games: list[Game] = []
 
+    from .gamepatch import APP_IDS
     for gdef in KNOWN_GAMES:
+        appid = gdef.steam_appid or APP_IDS.get(gdef.id, 0)
         for template in gdef.mod_paths:
-            hit = next((p for p in _resolve_template(template, libraries) if p.is_dir()), None)
+            hit = next((p for p in _resolve_template(template, libraries, appid) if p.is_dir()), None)
             if hit is None:
                 # Steam game installed but its mod folder doesn't exist yet: still list it.
                 m = re.match(r"\{steam:([^}]+)\}", template)

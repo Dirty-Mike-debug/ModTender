@@ -56,7 +56,8 @@ LOCALLOW = HOME / "AppData" / "LocalLow"
 DOCUMENTS = _documents_dir()
 
 # Everything ModTender owns lives here. MODTENDER_DATA overrides it (used by tests).
-DATA_DIR = _env_path("MODTENDER_DATA", LOCALAPPDATA / "ModTender")
+DATA_DIR = _env_path("MODTENDER_DATA", LOCALAPPDATA / "ModTender" if IS_WINDOWS else
+                     _env_path("XDG_DATA_HOME", HOME / ".local" / "share") / "ModTender")
 
 
 def data_dir() -> Path:

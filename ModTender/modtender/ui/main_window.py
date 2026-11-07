@@ -410,6 +410,13 @@ class MainWindow(QMainWindow):
         self._run("Checking for updates…", updates.check_for_update, repo, on_done=done, on_fail=fail)
 
     def _install_update(self, info):
+        if sys.platform != "win32":
+            # On Linux ModTender can't replace itself yet: open the download instead.
+            QDesktopServices.openUrl(QUrl(info.asset_url or info.url))
+            QMessageBox.information(self, "Update", f"Your browser is downloading ModTender {info.latest}. "
+                                    "Extract it over your current ModTender folder (your settings are kept), "
+                                    "then start it again.")
+            return
         def downloaded(new_root):
             QMessageBox.information(
                 self, "Installing update",

@@ -48,6 +48,8 @@ def is_app_build() -> bool:
 def pick_asset(assets: list[dict]) -> dict:
     """The installer for the app build; the source zip for the script version."""
     named = [(str(a.get("name", "")).lower(), a) for a in assets]
+    if sys.platform != "win32":
+        return next((a for n, a in named if "linux" in n), {})  # Linux: shown as a download, not installed
     if is_app_build():
         return next((a for n, a in named if n.endswith(".exe") and "setup" in n), {})
     return next((a for n, a in named if n.endswith(".zip") and "portable" not in n), {})
