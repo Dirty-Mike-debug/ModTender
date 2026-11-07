@@ -1,4 +1,4 @@
-# ModTender 0.18
+# ModTender 0.19
 
 A mod manager and safety tool for Windows. It finds your games, checks every mod for problems, explains how to fix them, and keeps backups you can restore at any time.
 
@@ -38,6 +38,7 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
 - **Find the broken mod** (Dashboard): turns mods off in halves while you test the game, and narrows a crash or bug down to the one mod causing it. Handles mods that need other mods, saves progress, and always puts everything back.
 - **Match mods** (Dashboard): compare your mods with a Farming Simulator server or savegame, a friend's shared mod list, a Modrinth modpack or a pasted list, then turn on, download or find what's missing. **Share my mod list** saves a file friends can match.
 - **Virus scan**: new mods, updates and downloads are checked with your antivirus (Microsoft Defender, or whichever antivirus you have) before they're installed. **Scan for viruses** checks everything you already have, and the Mods page shows a Clean / Flagged badge for each mod.
+- **Game update warnings**: when Steam patches a game, the Issues page says what usually breaks for that game and which of your mods are most at risk. It also warns when an update is waiting, so you can back up first.
 - **Install mods**: drag downloaded mods onto the window (or **Install mod** on the Mods page). ModTender copies or unpacks them into the right place for the game, and moves any older copy to quarantine instead of overwriting it.
 - **Mod updates** (Minecraft): checks Modrinth for newer versions that match your loader and Minecraft version, verifies each download, and keeps the old version in disabled mods.
 - **Crash logs**: after a crash, the Issues page names the mod most likely to blame. **Read crash log** opens any log by hand.

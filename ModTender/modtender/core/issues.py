@@ -28,7 +28,7 @@ STRAY_HINTS = {
 # (e.g. remove an extra copy before renaming anything).
 ACTION_ORDER = {"mkdir": 0, "quarantine_mod": 1, "dedupe": 2, "keep_newest": 3, "unpack": 4,
                 "rezip": 5, "rename": 6, "quarantine_files": 7, "enable": 8, "disable": 9, "search": 10,
-                "open_url": 11}
+                "open_url": 11, "ack_game_update": 12}
 
 WORKSHOP_FIX = ("Steam manages Workshop mods, so ModTender doesn't move them. Open the item on Steam and "
                 "unsubscribe to remove it, or unsubscribe and subscribe again to re-download it.")
@@ -311,6 +311,13 @@ def analyze(scan: ScanResult) -> list[Issue]:
     except Exception as exc:  # never let one game's special check break the whole scan
         from .log import log
         log.warning("[%s] Load-order check failed: %s", game.id, exc)
+    try:
+        from .gamepatch import APP_IDS, check as check_game_update
+        if gdef.id in APP_IDS:
+            found += check_game_update(game, scan.mods)
+    except Exception as exc:
+        from .log import log
+        log.warning("[%s] Game update check failed: %s", game.id, exc)
     try:
         from .crashlogs import latest_report, as_issue_dict
         report = latest_report(game, scan.mods)

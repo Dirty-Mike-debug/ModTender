@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.19.0
+- **Game update warnings.** ModTender notices when Steam updates one of your games and puts a warning on the Issues page: what usually breaks after a patch for that game (script extenders, BepInEx plugins, SMAPI, Cyberpunk's frameworks...), what to do about it, and which of your mods are most at risk. Dismiss it once you've checked.
+- **Heads-up when Steam has an update waiting**, so you can back up your mods before it installs.
+
 ## 0.18.0
 - **Virus scan for mods.** Every mod you install with ModTender, every Modrinth update and every modpack download is checked with your antivirus first; anything flagged is blocked and never reaches the game. Uses Microsoft Defender when it's on, and otherwise Windows' antimalware interface, which passes the file to whatever antivirus you have (Norton, Bitdefender and so on).
 - **Scan for viruses** (Mods page, More menu) checks all your current mods. Results are remembered, so a mod is only checked again when it changes or after 30 days.

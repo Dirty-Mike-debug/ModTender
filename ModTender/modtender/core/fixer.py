@@ -129,6 +129,10 @@ def apply_fix(game: Game, issue: Issue) -> list[str]:
     if a == "mkdir":
         game.mods_dir.mkdir(parents=True, exist_ok=True)
         return [f"Created {game.mods_dir}"]
+    if a == "ack_game_update":
+        from .gamepatch import acknowledge
+        acknowledge(p["key"], p["build"])
+        return ["Dismissed the game update warning"]
     if a == "quarantine_mod":
         _quarantine(game, _in_mods(game, p["mod"]))
         return [f"Moved {p['mod']} to quarantine"]
