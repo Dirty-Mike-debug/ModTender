@@ -72,6 +72,7 @@ class MainWindow(QMainWindow):
         if self.settings.check_updates_on_start and self._update_repo() and not updates.is_store_build():
             QTimer.singleShot(1500, lambda: self.check_for_updates(quiet=True))
         QTimer.singleShot(2500, self._report_finished_update)
+        QTimer.singleShot(9000, self._recheck_license)
         QTimer.singleShot(4000, self._refresh_sources)
         QTimer.singleShot(5000, self._fetch_steam_names)
         self._auto_timer = QTimer(self)
@@ -185,7 +186,9 @@ class MainWindow(QMainWindow):
         bug.setCursor(Qt.CursorShape.PointingHandCursor)
         bug.clicked.connect(lambda: self.report_problem())
         lay.addWidget(bug)
-        lay.addWidget(QLabel(f"   Version {__version__}", objectName="Version"))
+        self.version_label = QLabel(objectName="Version")
+        lay.addWidget(self.version_label)
+        self._update_pro_badge()
         return side
 
     def go(self, key: str):
@@ -217,6 +220,8 @@ class MainWindow(QMainWindow):
         self.apply_theme()
 
     def set_theme_color(self, key: str, color: str):
+        if not self.require_pro("Custom colors"):
+            return
         self.settings.theme_overrides[key] = color
         self.save_settings()
         self.apply_theme()
@@ -1069,6 +1074,88 @@ class MainWindow(QMainWindow):
         elif box.clickedButton() is opened:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(report.path)))
 
+    # ------------------------------------------------------------ ModTender Pro
+
+    FREE_BACKUPS = 5
+
+    def backups_to_keep(self) -> int:
+        from ..core import license
+        keep = self.settings.keep_backups
+        return keep if license.is_pro() else min(keep, self.FREE_BACKUPS)
+
+    def _update_pro_badge(self):
+        from ..core import license
+        pro = license.on_sale() and license.is_pro()
+        self.version_label.setText(f"   Version {__version__}" + ("  ·  PRO" if pro else ""))
+
+    def require_pro(self, feature: str) -> bool:
+        """True when Pro is unlocked; otherwise offer the upgrade and return False."""
+        from ..core import license
+        if license.is_pro():
+            return True
+        self.show_upgrade(feature)
+        return license.is_pro()  # they may have entered a key in the window
+
+    def show_upgrade(self, feature: str = ""):
+        from ..core import license
+        box = QMessageBox(self)
+        box.setWindowTitle("ModTender Pro")
+        price = f" for a one-time {license.PRICE}" if license.PRICE else ""
+        box.setText((f"{feature} is part of ModTender Pro." if feature else "Get ModTender Pro") +
+                    f"\n\nPro is a one-time purchase{price}. Everything that finds and fixes problems stays free.")
+        box.setInformativeText("Pro adds:\n" + "\n".join(f"•  {f}" for f in license.PRO_FEATURES))
+        buy = box.addButton("Upgrade", QMessageBox.ButtonRole.AcceptRole) if license.CHECKOUT_URL else None
+        key = box.addButton("I have a key", QMessageBox.ButtonRole.ActionRole)
+        box.addButton("Not now", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        if buy is not None and box.clickedButton() is buy:
+            QDesktopServices.openUrl(QUrl(license.CHECKOUT_URL))
+            QMessageBox.information(self, "ModTender Pro", "Your browser is opening the checkout. After paying, "
+                                    "Gumroad shows your license key and emails it to you.\n\nThen come back and "
+                                    "choose I have a key (Settings → ModTender Pro).")
+        elif box.clickedButton() is key:
+            self.enter_license_key()
+
+    def enter_license_key(self):
+        from ..core import license
+        text, ok = QInputDialog.getText(self, "ModTender Pro", "Paste the license key from your Gumroad receipt:")
+        if not ok or not text.strip():
+            return
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            email = license.activate(text)
+        except license.LicenseError as exc:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self, "ModTender Pro", str(exc))
+            return
+        QApplication.restoreOverrideCursor()
+        self._update_pro_badge()
+        self.refresh_all()
+        QMessageBox.information(self, "ModTender Pro", "Pro is unlocked. Thanks for supporting ModTender!"
+                                + (f"\n\nRegistered to {email}." if email else ""))
+
+    def remove_license_key(self):
+        from ..core import license
+        if QMessageBox.question(self, "ModTender Pro", "Remove the Pro key from this PC? You can enter it again "
+                                "any time (for example to move it to another PC).") != QMessageBox.StandardButton.Yes:
+            return
+        license.deactivate()
+        self._update_pro_badge()
+        self.refresh_all()
+
+    def _recheck_license(self):
+        import threading
+        from ..core import license
+        result = {}
+        threading.Thread(target=lambda: result.setdefault("why", license.recheck_if_due()), daemon=True).start()
+
+        def report():
+            if result.get("why"):
+                self._update_pro_badge()
+                self.refresh_all()
+                QMessageBox.warning(self, "ModTender Pro", f"ModTender Pro was switched off on this PC: {result['why']}")
+        QTimer.singleShot(25000, report)
+
     # ------------------------------------------------------------ space saver
 
     def open_space_saver(self):
@@ -1211,6 +1298,9 @@ class MainWindow(QMainWindow):
     def set_auto_backup(self, every: str, on_change: bool):
         if not self.game:
             return
+        if (every != "off" or on_change) and not self.require_pro("Automatic backups"):
+            self.pages["backups"].refresh()  # put the controls back to off
+            return
         if every == "off" and not on_change:
             self.settings.auto_backups.pop(self.game.id, None)
         else:
@@ -1220,9 +1310,10 @@ class MainWindow(QMainWindow):
 
     def _auto_backup_tick(self):
         """Run at most one due automatic backup. Called on a timer and after scans."""
-        if self._busy:
+        from ..core import license
+        if self._busy or not license.is_pro():
             return
-        root, keep = self.settings.backup_root, self.settings.keep_backups
+        root, keep = self.settings.backup_root, self.backups_to_keep()
         # The current game first: it may also need an "after a change" backup.
         if self.game and self.scan is not None and self.game.id in self.settings.auto_backups:
             cfg = self.settings.auto_backups[self.game.id]
@@ -1257,7 +1348,7 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Back up", "All of this game's mods come from the Steam Workshop. Steam keeps "
                                     "them, so there's nothing to back up. Resubscribe on Steam to get any of them back.")
             return
-        game, root, keep = self.game, self.settings.backup_root, self.settings.keep_backups
+        game, root, keep = self.game, self.settings.backup_root, self.backups_to_keep()
 
         def work(progress=None):
             b = backups.create_backup(game, root, note=note, progress=progress)

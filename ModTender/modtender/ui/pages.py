@@ -556,7 +556,8 @@ class BackupsPage(Page):
         # Automatic backups for this game
         auto = QHBoxLayout()
         auto.setSpacing(10)
-        auto.addWidget(QLabel("Automatic backups", objectName="Section"))
+        self.auto_label = QLabel("Automatic backups", objectName="Section")
+        auto.addWidget(self.auto_label)
         self.every = QComboBox()
         self.every.addItem("Off", "off")
         self.every.addItem("Every day", "daily")
@@ -671,6 +672,8 @@ class BackupsPage(Page):
         local = bool(game and not game.workshop_only)
         for w in (self.every, self.on_change, self.rollback, self.auto_hint):
             w.setVisible(local)
+        from ..core import license
+        self.auto_label.setText("Automatic backups" + ("" if license.is_pro() else "  ·  Pro"))
         if game is None:
             self.subheading.setText("")
             self._loading = False
@@ -693,7 +696,7 @@ class BackupsPage(Page):
                                  if working else "Mark a backup as working first")
         used = self.win.backup_storage()
         self.subheading.setText(f"{len(self.win.backups)} backup{'s' if len(self.win.backups) != 1 else ''} · "
-                                f"keeping the newest {self.win.settings.keep_backups} plus any marked as working · "
+                                f"keeping the newest {self.win.backups_to_keep()} plus any marked as working · "
                                 f"{human_size(used)} on disk"
                                 + (" · Workshop mods aren't included: Steam keeps those." if game.workshop_dir else ""))
         for b in self.win.backups:
@@ -770,6 +773,10 @@ class SettingsPage(Page):
         self._build_games()
         self.body.addWidget(divider())
         self._build_updates()
+        from ..core import license
+        if license.on_sale():
+            self.body.addWidget(divider())
+            self._build_pro()
         if self.win.user is not None:
             self.body.addWidget(divider())
             self._build_users()
@@ -936,6 +943,26 @@ class SettingsPage(Page):
         row = QHBoxLayout()
         row.addWidget(button("Add game", self.win.add_custom_game, icon_name="plus"))
         row.addWidget(button("Remove selected", self._remove_custom, "Danger"))
+        row.addStretch()
+        self.body.addLayout(row)
+
+    def _build_pro(self):
+        from ..core import license
+        st = license.status()
+        if st["pro"]:
+            self._section("ModTender Pro", "Pro is unlocked on this PC. Thanks for supporting ModTender!"
+                          + (f" Registered to {st['email']}." if st["email"] else ""))
+            row = QHBoxLayout()
+            row.addWidget(button("Remove key from this PC", self.win.remove_license_key,
+                                 tip="Free up this PC's activation, for example before moving to a new PC"))
+        else:
+            price = f" for a one-time {license.PRICE}" if license.PRICE else ""
+            self._section("ModTender Pro", f"Everything that finds and fixes problems is free. Pro adds extras{price}: "
+                          + "; ".join(f[0].lower() + f[1:] for f in license.PRO_FEATURES[:5]) + ".")
+            row = QHBoxLayout()
+            if license.CHECKOUT_URL:
+                row.addWidget(button("Upgrade to Pro", lambda: self.win.show_upgrade(), "Primary", "star"))
+            row.addWidget(button("I have a key", self.win.enter_license_key))
         row.addStretch()
         self.body.addLayout(row)
 

@@ -98,5 +98,7 @@ class ModUpdatesDialog(QDialog):
     def _accept(self):
         self.chosen = [u for r, u in enumerate(self._rows())
                        if self.table.item(r, 0).checkState() == Qt.CheckState.Checked]
+        if len(self.chosen) > 1 and not self.parent().require_pro("Updating several mods at once"):
+            return
         if self.chosen:
             self.accept()

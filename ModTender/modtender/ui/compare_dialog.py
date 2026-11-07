@@ -180,6 +180,8 @@ class CompareDialog(QDialog):
         self._draw()
 
     def _turn_on(self):
+        if not self.win.require_pro("Turning on mods from Match mods"):
+            return
         from ..core import manager
         problems = []
         for m in self.result.turned_off:
@@ -192,6 +194,8 @@ class CompareDialog(QDialog):
         self._refresh_mods()
 
     def _turn_off_extra(self):
+        if not self.win.require_pro("Turning off extra mods from Match mods"):
+            return
         from ..core import manager
         n = len(self.result.extra)
         if QMessageBox.question(self, "Match mods", f"Turn off {n} mod{'s' if n != 1 else ''} that the list "
@@ -213,6 +217,8 @@ class CompareDialog(QDialog):
             self.win.status(f"Opened the first 5 of {len(items)}. Use Copy as text for the full list.")
 
     def _download(self):
+        if not self.win.require_pro("Downloading missing mods"):
+            return
         items = [m for m in self.result.missing if m.download]
 
         def done(result):

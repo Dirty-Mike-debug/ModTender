@@ -67,6 +67,8 @@ class SpaceDialog(QDialog):
         lay.addLayout(row)
 
     def _apply(self):
+        if not self.win.require_pro("Space saver"):
+            return
         def done(result):
             saved, problems = result
             text = f"Freed {_size(saved)}."

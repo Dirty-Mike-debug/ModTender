@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.27.0
+- **ModTender Pro is built in, ready for launch.** Everything that finds and fixes problems stays free. Pro (a one-time purchase through Gumroad, unlocked with the license key from the receipt) adds automatic backups and unlimited backup history, updating all Minecraft mods at once, one-click fixes in Match mods, the Space saver, custom colors, and a Pro badge. One key works on up to 5 PCs, and Pro keeps working offline.
+- Pro isn't on sale yet, so nothing is locked in this version.
+
 ## 0.26.0
 - **Getting ready for the Microsoft Store.** Each release now also builds a Microsoft Store package. The Store version is signed by Microsoft (no more "Windows protected your PC" warning) and gets its updates from the Store, so its own updater is switched off. The GitHub version keeps updating itself as before.
 - Privacy policy published at github.com/Dirty-Mike-debug/ModTender/blob/main/PRIVACY.md.
