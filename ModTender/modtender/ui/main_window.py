@@ -56,6 +56,13 @@ class MainWindow(QMainWindow):
         self.progress.setTextVisible(False)
         self.progress.hide()
         self.statusBar().addPermanentWidget(self.progress)
+        self.watch_button = QPushButton("", objectName="Ghost")
+        self.watch_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.watch_button.setToolTip("ModTender is watching the game's logs and will tell you if it crashes. "
+                                     "Click to stop.")
+        self.watch_button.clicked.connect(lambda: self.stop_watching())
+        self.watch_button.hide()
+        self.statusBar().addPermanentWidget(self.watch_button)
 
         if self.settings.start_page in dict(NAV):
             self.current_page = self.settings.start_page
@@ -1024,16 +1031,24 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Read crash log", "That file couldn't be opened.")
             return
         log.info("[%s] Read crash log %s: %d suspect(s)", self.game.id, path, len(report.suspects))
+        self._show_crash_report(report)
+
+    def _show_crash_report(self, report, title: str = "Crash log"):
+        from ..core import crashlogs
         box = QMessageBox(self)
-        box.setWindowTitle("Crash log")
+        box.setWindowTitle(title)
         box.setText(crashlogs.describe(report))
         top = next((s for s in report.suspects if s.mod_file), None)
         if top:
             box.setInformativeText(f"To test it, turn off {top.name} and start the game again. If the problem "
                                    "goes away, update or replace that mod.")
+        elif report.crashed:
+            box.setInformativeText("No single mod is named. Find broken mod (on the Dashboard) can narrow it "
+                                   "down by turning mods off in halves.")
         if report.excerpt:
             box.setDetailedText(report.excerpt)
         off = box.addButton(f"Turn off {top.name}", QMessageBox.ButtonRole.AcceptRole) if top else None
+        hunt = box.addButton("Find broken mod", QMessageBox.ButtonRole.ActionRole) if not top and report.crashed else None
         opened = box.addButton("Open the log", QMessageBox.ButtonRole.ActionRole)
         box.addButton("Close", QMessageBox.ButtonRole.RejectRole)
         box.exec()
@@ -1042,8 +1057,83 @@ class MainWindow(QMainWindow):
             self._apply_fixes([Issue("warning", "Crash suspect", "", "", [top.mod_file], action="disable",
                                      params={"mods": [top.mod_file]}, action_label=f"Turn off {top.name}")],
                               backup=False)
+        elif hunt is not None and box.clickedButton() is hunt:
+            self.find_broken_mod()
         elif box.clickedButton() is opened:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(report.path)))
+
+    # ------------------------------------------------------------ play
+
+    def play_game(self):
+        if not self.game:
+            return
+        game = self.game
+
+        def work(progress):
+            progress(20, f"Checking {game.name} before it starts…")
+            scan = scan_game(game, deep=False, progress=lambda p, m: progress(20 + p * 0.7, m))
+            return scan, analyze(scan)
+
+        def checked(result):
+            self.scan, self.issues = result
+            self.refresh_all()
+            blockers = [i for i in self.issues if i.severity == "critical"]
+            if blockers:
+                box = QMessageBox(self)
+                box.setWindowTitle("Before you play")
+                box.setText(f"ModTender found {len(blockers)} problem{'s' if len(blockers) != 1 else ''} that can "
+                            "stop the game from starting or crash it:")
+                box.setInformativeText("\n".join(f"•  {i.title}" for i in blockers[:8]))
+                show = box.addButton("Show me", QMessageBox.ButtonRole.AcceptRole)
+                anyway = box.addButton("Play anyway", QMessageBox.ButtonRole.DestructiveRole)
+                box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+                box.exec()
+                if box.clickedButton() is show:
+                    self.go("issues")
+                    return
+                if box.clickedButton() is not anyway:
+                    return
+            self._launch(game)
+
+        self._run(f"Checking {game.name}…", work, on_done=checked)
+
+    def _launch(self, game):
+        from ..core import launcher
+        url = launcher.launch_url(game)
+        if url:
+            QDesktopServices.openUrl(QUrl(url))
+            self.status(f"Starting {game.name} through Steam…")
+        else:
+            QMessageBox.information(self, "Play", f"{launcher.how_to_start(game)}\n\nModTender will watch for a "
+                                    "crash while you play and tell you which mod is the likely cause.")
+        self._watch = launcher.Watch(game, list(self.scan.mods) if self.scan else [])
+        if not hasattr(self, "_watch_timer"):
+            self._watch_timer = QTimer(self)
+            self._watch_timer.timeout.connect(self._watch_tick)
+        self._watch_timer.start(10_000)
+        self.watch_button.setText(f"Watching {game.name} for crashes · Stop")
+        self.watch_button.show()
+        log.info("[%s] Launched (%s), watching for crashes", game.id, url or "started by the player")
+
+    def _watch_tick(self):
+        watch = getattr(self, "_watch", None)
+        if watch is None or watch.expired:
+            self.stop_watching()
+            return
+        try:
+            report = watch.check()
+        except Exception as exc:
+            log.warning("Crash watch failed: %s", exc)
+            return
+        if report:
+            self.bring_to_front()
+            self._show_crash_report(report, f"{watch.game.name} crashed")
+
+    def stop_watching(self):
+        if hasattr(self, "_watch_timer"):
+            self._watch_timer.stop()
+        self._watch = None
+        self.watch_button.hide()
 
     def show_changes(self, backup):
         ch = self.changes_since(backup)

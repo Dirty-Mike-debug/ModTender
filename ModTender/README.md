@@ -1,4 +1,4 @@
-# ModTender 0.22
+# ModTender 0.24
 
 A mod manager and safety tool for Windows. It finds your games, checks every mod for problems, explains how to fix them, and keeps backups you can restore at any time.
 
@@ -37,6 +37,7 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
   - Crash logs: names the mod most likely behind a crash (Minecraft, Stardew Valley, Valheim, Farming Simulator)
   - Baldur's Gate 3: mods not in the mod list, and listed mods whose file is missing
   - files the game can't use (`.rar`, readmes, unfinished downloads)
+- **Play** (Dashboard): checks for problems that would stop the game starting, launches it through Steam, and watches for a crash, naming the likely mod the moment it happens.
 - **Find the broken mod** (Dashboard): turns mods off in halves while you test the game, and narrows a crash or bug down to the one mod causing it. Handles mods that need other mods, saves progress, and always puts everything back.
 - **Match mods** (Dashboard): compare your mods with a Farming Simulator server or savegame, a friend's shared mod list, a Modrinth modpack or a pasted list, then turn on, download or find what's missing. **Share my mod list** saves a file friends can match.
 - **Virus scan**: new mods, updates and downloads are checked with your antivirus (Microsoft Defender, or whichever antivirus you have) before they're installed. **Scan for viruses** checks everything you already have, and the Mods page shows a Clean / Flagged badge for each mod.

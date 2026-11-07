@@ -150,7 +150,9 @@ class DashboardPage(Page):
         ])
         self.actions.addWidget(more)
         self.actions.addWidget(button("Back up", win.create_backup, icon_name="save"))
-        self.actions.addWidget(button("Scan", win.start_scan, "Primary", "scan"))
+        self.actions.addWidget(button("Scan", win.start_scan, icon_name="scan"))
+        self.actions.addWidget(button("Play", win.play_game, "Primary", "play",
+                                      tip="Check for problems, start the game, and watch for a crash"))
 
         grid = QGridLayout()
         grid.setSpacing(14)

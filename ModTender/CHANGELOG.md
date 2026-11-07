@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.24.0
+- **Play button** (Dashboard). ModTender checks your mods first and warns about anything that would stop the game starting (with "Show me" or "Play anyway"), then starts the game through Steam.
+- **Crash watching.** While you play, ModTender watches the game's crash reports and logs. If the game crashes, ModTender pops up with the mod most likely to blame and a one-click "Turn off" (or Find broken mod when no single mod is named). The status bar shows "Watching … for crashes"; click it to stop.
+- Minecraft packs are checked and watched too; start them from CurseForge or the Minecraft Launcher as usual.
+
 ## 0.23.0
 - **Automatic updates on Linux.** Check for updates → Update now downloads the new Linux version, checks it, swaps it in and restarts ModTender, just like on Windows. If anything goes wrong, the previous version is put back. (Linux users on 0.21 or 0.22 need to update by hand once to get this.)
 
