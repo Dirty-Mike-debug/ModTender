@@ -36,6 +36,7 @@ PRO_FEATURES = [
     "Update all your Minecraft mods at once",
     "One-click fixes in Match mods: turn on, download missing and turn off extras",
     "Space saver: store identical mod files only once",
+    "Unlimited mod profiles (free: 2 per game)",
     "Custom colors and accent for any theme",
     "A Pro badge, and the warm feeling of supporting the developer",
 ]

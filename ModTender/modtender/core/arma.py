@@ -31,7 +31,8 @@ def _files(folder: Path | None, ext: str) -> list[Path]:
         return []
 
 
-def analyze_arma3(mods: list) -> list[dict]:
+def analyze_arma3(mods: list, game_name: str = "Arma 3", check_keys: bool = True) -> list[dict]:
+    """Also used for DayZ, which uses the same @mod / addons / keys layout."""
     out = []
     owners: dict[str, list] = defaultdict(list)  # pbo name -> mods that ship it
     unsigned = []
@@ -42,7 +43,7 @@ def analyze_arma3(mods: list) -> list[dict]:
         pbos = _files(addons, ".pbo")
         for pbo in pbos:
             owners[pbo.name.lower()].append(m)
-        if pbos and not _files(_sub(m.path, "keys"), ".bikey"):
+        if check_keys and pbos and not _files(_sub(m.path, "keys"), ".bikey"):
             unsigned.append(m)
 
     clashes: dict[tuple, list[str]] = defaultdict(list)
@@ -60,7 +61,7 @@ def analyze_arma3(mods: list) -> list[dict]:
                       f"{'…' if len(pbos) > 5 else ''}). Loading both can cause errors on startup or odd "
                       "behaviour, and servers may reject the duplicate.",
             "fix": "Usually one of them bundles the other (for example a pack that includes CBA). Load only one "
-                   "of them in the Arma 3 Launcher.",
+                   "of them in the " + ("Arma 3 Launcher." if game_name == "Arma 3" else f"{game_name} Launcher."),
             "mods": list(names),
         })
     if unsigned:

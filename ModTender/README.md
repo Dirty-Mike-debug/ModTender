@@ -34,6 +34,7 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
   - Minecraft: mods built for a different mod loader or Minecraft version
   - Deadlock: gameinfo.gi reset by an update, .vpk files with names the game won't load, mods overriding each other
   - Arma 3: two mods shipping the same addon, mods without signing keys; Arma Reforger: missing dependencies and unfinished downloads
+  - DayZ: two mods shipping the same addon; Total War: Warhammer III: packs made for older Total War games, the same mod in the data folder and from the Workshop; Planet Zoo: mods unzipped one folder too deep
   - Crash logs: names the mod most likely behind a crash (Minecraft, Stardew Valley, Valheim, Farming Simulator)
   - Baldur's Gate 3: mods not in the mod list, and listed mods whose file is missing
   - files the game can't use (`.rar`, readmes, unfinished downloads)
@@ -58,7 +59,7 @@ Install Python 3.10+ (tick "Add python.exe to PATH"), then double-click `run.bat
 
 ## Supported games out of the box
 
-Farming Simulator 25 & 22, Minecraft Java (plus CurseForge instances), Stardew Valley, The Sims 4, Skyrim SE, Fallout 4, The Witcher 3, Cyberpunk 2077, Baldur's Gate 3, Valheim (BepInEx), RimWorld, Euro Truck Simulator 2, American Truck Simulator, Cities: Skylines II, SnowRunner, Arma 3, Arma Reforger, Deadlock. Any other game works through **Add game**, and every Steam game you have Workshop mods for is listed automatically.
+Farming Simulator 25 & 22, Minecraft Java (plus CurseForge instances), Stardew Valley, The Sims 4, Skyrim SE, Fallout 4, The Witcher 3, Cyberpunk 2077, Baldur's Gate 3, Valheim (BepInEx), RimWorld, Euro Truck Simulator 2, American Truck Simulator, Cities: Skylines II, SnowRunner, Arma 3, Arma Reforger, Deadlock, DayZ, Total War: Warhammer III, Planet Zoo. Any other game works through **Add game**, and every Steam game you have Workshop mods for is listed automatically.
 
 To add a game permanently, add a `GameDef` entry to `modtender/core/games.py`.
 

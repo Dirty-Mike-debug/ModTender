@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.29.0
+- **Mod profiles** (Mods page → Profile). Save which mods are on as a named profile ("Multiplayer", "Solo heavy mods"…) and switch between them in one click. ModTender turns the profile's mods on and the rest off. Nothing is deleted, and the setup you had before is saved as "Before switching" so you can undo. The button shows which profile matches your mods right now. Free: 2 profiles per game; Pro: unlimited. Not available for games whose launcher or load order file decides what loads (Skyrim, Fallout 4, BG3, RimWorld, Arma, DayZ, Total War).
+- **DayZ.** @mods in the game folder plus Workshop mods, a check for two mods shipping the same addon, crash log reading (.RPT), game update warnings and Play. Installing a zip puts it in an @folder automatically.
+- **Total War: Warhammer III.** .pack mods in the data folder plus Workshop mods. Creative Assembly's own packs are recognized and protected. Flags packs made for older Total War games (they won't load), damaged packs, and the same mod both in the data folder and from the Workshop.
+- **Planet Zoo.** Mod folders in win64\ovldata, with Frontier's own content protected. Flags mods unzipped one folder too deep (the most common reason a new species doesn't show up). Get mods lists ACSE, which most species mods need.
+
 ## 0.28.1
 - **Tidy-up pass.**
 - The mouse wheel no longer changes a drop-down (theme, game, text size…) when you're just scrolling a page past it. Click the box first if you want to use the wheel on it.

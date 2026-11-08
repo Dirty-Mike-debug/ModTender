@@ -63,6 +63,10 @@ def find_logs(game) -> list[Path]:
         found.append(mods.parent / "log.txt")
     elif gid == "arma3":
         found += (paths.LOCALAPPDATA / "Arma 3").glob("*.rpt")
+    elif gid == "dayz":
+        found += (paths.LOCALAPPDATA / "DayZ").glob("*.RPT")
+        found += (paths.LOCALAPPDATA / "DayZ").glob("*.rpt")
+        found += (paths.LOCALAPPDATA / "DayZ").glob("crash*.log")
     elif gid == "reforger":
         logs = paths.DOCUMENTS / "My Games" / "ArmaReforger" / "logs"
         try:
@@ -115,7 +119,7 @@ def analyze_log(path: Path, mods: list) -> CrashReport | None:
         report = _minecraft_crash(path, text, when)
     elif name.startswith("hs_err_pid"):
         report = _java_crash(path, text, when)
-    elif name.endswith(".rpt") or "requires addon" in text[:200000]:
+    elif name.endswith(".rpt") or "requires addon" in text[:200000] or (name.startswith("crash") and "dayz" in text[:5000].lower()):
         report = _arma3(path, text, when)
     elif "[SMAPI]" in text[:20000] or name.startswith("smapi-"):
         report = _smapi(path, text, when)
@@ -235,9 +239,10 @@ def _arma3(path: Path, text: str, when: datetime) -> CrashReport:
         _add(suspects, needs.split("_")[0], f"its addon {needs} needs {missing}, which isn't loaded")
     for m in re.finditer(r"Cannot load (?:texture|model|sound|file) ([^\s.]+[\\/][^\s]+)", text, re.I):
         _add(suspects, re.split(r"[\\/]", m.group(1).lstrip("\\/"))[0], "a file it needs couldn't be loaded")
-    crashed = bool(re.search(r"Exception code:|ACCESS_VIOLATION|STATUS_ACCESS", text))
+    crashed = bool(re.search(r"Exception code:|ACCESS_VIOLATION|STATUS_ACCESS", text)) or path.name.lower().startswith("crash")
+    game = "DayZ" if "dayz" in (str(path).lower() + text[:3000].lower()) else "Arma 3"
     return CrashReport(path, "crash" if crashed else "log", when,
-                       "Arma 3 crashed" if crashed else "Errors in the last Arma 3 session",
+                       f"{game} crashed" if crashed else f"Errors in the last {game} session",
                        _ranked(suspects), _excerpt(text, r"(requires addon|Exception code|Cannot load|Error)"))
 
 

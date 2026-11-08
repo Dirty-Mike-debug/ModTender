@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-06 17:28",
+ "updated": "2026-11-08 06:00",
  "kinds": {
   "official": "Official",
   "trusted": "Trusted community site",
@@ -565,6 +565,81 @@
    "tips": [
     "Only cosmetic mods are allowed. Mods that change gameplay can get your account banned.",
     "After every Deadlock update, mods stop loading until gameinfo.gi is set up again. ModTender flags this."
+   ]
+  },
+  "dayz": {
+   "name": "DayZ",
+   "sources": [
+    {
+     "name": "Steam Workshop",
+     "kind": "trusted",
+     "url": "https://steamcommunity.com/app/221100/workshop/",
+     "note": "Where nearly all DayZ mods live. Subscribe, then pick them in the DayZ Launcher."
+    },
+    {
+     "name": "Community Framework (CF)",
+     "kind": "loader",
+     "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=1559212036",
+     "note": "The framework most DayZ mods need. Load it first."
+    }
+   ],
+   "tips": [
+    "When you join a modded server, the DayZ Launcher offers to download its mods. Load exactly that list.",
+    "Two mods that bundle the same addon (.pbo) can stop the game starting. ModTender warns about those."
+   ]
+  },
+  "warhammer3": {
+   "name": "Total War: Warhammer III",
+   "sources": [
+    {
+     "name": "Steam Workshop",
+     "kind": "trusted",
+     "url": "https://steamcommunity.com/app/1142710/workshop/",
+     "note": "Where most Warhammer III mods live. Subscribe, then tick them in the game's launcher."
+    },
+    {
+     "name": "Nexus Mods",
+     "kind": "trusted",
+     "url": "https://www.nexusmods.com/totalwarwarhammer3",
+     "note": "Some mods are posted here too. Their .pack files go in the game's data folder."
+    },
+    {
+     "name": "Runcher (mod manager)",
+     "kind": "tool",
+     "url": "https://github.com/Frodo45127/runcher/releases",
+     "note": "A community launcher for load order and mod profiles in Total War games."
+    }
+   ],
+   "tips": [
+    "Don't add or remove mods in the middle of a campaign. Many mods can't be removed from a save safely.",
+    "Packs made for Warhammer II or older games won't load in Warhammer III. ModTender flags those."
+   ]
+  },
+  "planetzoo": {
+   "name": "Planet Zoo",
+   "sources": [
+    {
+     "name": "Steam Workshop",
+     "kind": "trusted",
+     "url": "https://steamcommunity.com/app/703080/workshop/",
+     "note": "Blueprints, habitats and scenery from other players. Subscribing installs them."
+    },
+    {
+     "name": "Nexus Mods",
+     "kind": "trusted",
+     "url": "https://www.nexusmods.com/planetzoo",
+     "note": "New species and other mods. Unzip each mod's folder into Planet Zoo\\win64\\ovldata."
+    },
+    {
+     "name": "ACSE",
+     "kind": "loader",
+     "url": "https://www.nexusmods.com/planetzoo/mods/983",
+     "note": "The scripting extension most new-species mods need."
+    }
+   ],
+   "tips": [
+    "Unzip the mod first: ovldata needs the mod's folder, not the .zip, and not a folder inside a folder.",
+    "Most new species need ACSE installed too."
    ]
   }
  }

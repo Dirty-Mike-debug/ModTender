@@ -720,6 +720,139 @@ class MainWindow(QMainWindow):
             self.status(f"{'Enabled' if enable else 'Disabled'} {changed} mod(s).")
             self.start_scan()
 
+    # ------------------------------------------------------------ mod profiles
+
+    def profile_label(self) -> str:
+        from ..core import profiles
+        if not self.game or not self.scan or profiles.unsupported_reason(self.game):
+            return "Profiles"
+        name = profiles.current_match(self.game.id, self.scan.mods)
+        if name:
+            return f"Profile: {name}"
+        return "Profile: (changed)" if profiles.active(self.game.id) else "Profiles"
+
+    def fill_profile_menu(self, menu):
+        from ..core import profiles
+        menu.clear()
+        why = profiles.unsupported_reason(self.game)
+        if why:
+            act = menu.addAction(why)
+            act.setEnabled(False)
+            return
+        if not self.scan:
+            menu.addAction("Scan the game first").setEnabled(False)
+            return
+        current = profiles.current_match(self.game.id, self.scan.mods)
+        listed = profiles.names(self.game.id)
+        for name in listed:
+            if name == profiles.UNDO_NAME:
+                menu.addSeparator()
+            prof = profiles.get(self.game.id, name) or {}
+            label = f"{name}  ·  {len(prof.get('mods', []))} mods"
+            if name == profiles.UNDO_NAME:
+                label = f"Undo last switch ({len(prof.get('mods', []))} mods)"
+            act = menu.addAction(icon("check", theme.ACCENT) if name == current else icon("layers", theme.MUTED), label)
+            act.setEnabled(name != current)
+            act.triggered.connect(lambda _=False, n=name: self.switch_profile(n))
+        if listed:
+            menu.addSeparator()
+        act = profiles.active(self.game.id)
+        if act and act != current and profiles.get(self.game.id, act):
+            menu.addAction(icon("save", theme.MUTED), f"Update '{act}' with the mods on now").triggered.connect(
+                lambda: self.save_profile(act))
+        menu.addAction(icon("plus", theme.MUTED), "Save mods on now as a new profile…").triggered.connect(
+            lambda: self.save_profile())
+        if profiles.count(self.game.id):
+            menu.addAction(icon("more", theme.MUTED), "Rename or delete profiles…").triggered.connect(
+                self.manage_profiles)
+
+    def save_profile(self, name: str = ""):
+        from ..core import license, profiles
+        if not self.game or not self.scan:
+            return
+        if not name:
+            if profiles.count(self.game.id) >= profiles.FREE_PROFILES and not license.is_pro():
+                if not self.require_pro(f"More than {profiles.FREE_PROFILES} profiles per game"):
+                    return
+            name, ok = QInputDialog.getText(self, "New profile",
+                                            "Name for this set of mods (for example \"Multiplayer\" or \"Solo\"):")
+            name = name.strip()
+            if not ok or not name:
+                return
+            if name == profiles.UNDO_NAME:
+                QMessageBox.information(self, APP_NAME, "That name is used for undoing a switch. Pick another one.")
+                return
+            if profiles.get(self.game.id, name) and QMessageBox.question(
+                    self, APP_NAME, f"There's already a profile called '{name}'. Replace it?") \
+                    != QMessageBox.StandardButton.Yes:
+                return
+        prof = profiles.save(self.game.id, name, self.scan.mods)
+        self.status(f"Saved profile '{name}' ({len(prof['mods'])} mods on).")
+        self.pages["mods"].refresh()
+
+    def switch_profile(self, name: str):
+        from ..core import profiles
+        if not self.game or not self.scan:
+            return
+        try:
+            plan = profiles.plan(self.game.id, name, self.scan.mods)
+        except ValueError as exc:
+            QMessageBox.warning(self, APP_NAME, str(exc))
+            return
+        title = "Undo last switch" if name == profiles.UNDO_NAME else f"Switch to '{name}'"
+        lines = []
+        if plan.turn_on:
+            lines.append(f"Turn on {len(plan.turn_on)} mod(s)")
+        if plan.turn_off:
+            lines.append(f"Turn off {len(plan.turn_off)} mod(s)")
+        if plan.missing:
+            shown = ", ".join(plan.missing[:8]) + ("…" if len(plan.missing) > 8 else "")
+            lines.append(f"{len(plan.missing)} mod(s) in this profile aren't installed any more: {shown}")
+        if not plan.changes:
+            QMessageBox.information(self, title, "Your mods already match this profile." +
+                                    ("\n\n" + lines[-1] if plan.missing else ""))
+            return
+        note = ("" if name == profiles.UNDO_NAME or profiles.current_match(self.game.id, self.scan.mods) else
+                "\n\nThe mods you have on now are saved as 'Before switching', so you can undo this.")
+        if QMessageBox.question(self, title, "\n".join(f"•  {line}" for line in lines) +
+                                "\n\nNothing is deleted: mods that are turned off are kept by ModTender." + note) \
+                != QMessageBox.StandardButton.Yes:
+            return
+        _, errors = profiles.switch(self.game, name, self.scan.mods)
+        if errors:
+            QMessageBox.warning(self, APP_NAME, "Some mods couldn't be changed:\n\n" + "\n".join(errors[:20]))
+        self.status(f"Switched to profile '{name}'." if name != profiles.UNDO_NAME else "Undid the last switch.")
+        self.start_scan()
+
+    def manage_profiles(self):
+        from ..core import profiles
+        if not self.game:
+            return
+        names = [n for n in profiles.names(self.game.id) if n != profiles.UNDO_NAME]
+        if not names:
+            return
+        name, ok = QInputDialog.getItem(self, "Profiles", "Pick a profile:", names, 0, False)
+        if not ok:
+            return
+        box = QMessageBox(self)
+        box.setWindowTitle(f"Profile '{name}'")
+        box.setText(f"What do you want to do with '{name}'?\n\nDeleting a profile doesn't change your mods.")
+        rename = box.addButton("Rename…", QMessageBox.ButtonRole.ActionRole)
+        delete = box.addButton("Delete", QMessageBox.ButtonRole.DestructiveRole)
+        box.addButton(QMessageBox.StandardButton.Cancel)
+        box.exec()
+        if box.clickedButton() is rename:
+            new, ok = QInputDialog.getText(self, "Rename profile", "New name:", text=name)
+            if ok and new.strip() and new.strip() != profiles.UNDO_NAME:
+                try:
+                    profiles.rename(self.game.id, name, new)
+                except ValueError as exc:
+                    QMessageBox.warning(self, APP_NAME, str(exc))
+        elif box.clickedButton() is delete:
+            profiles.delete(self.game.id, name)
+            self.status(f"Deleted profile '{name}'. Your mods weren't changed.")
+        self.pages["mods"].refresh()
+
     # ------------------------------------------------------------ find the broken mod
 
     def show_error(self, title: str, detail) -> None:

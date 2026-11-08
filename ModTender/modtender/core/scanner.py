@@ -451,6 +451,9 @@ def scan_game(game: Game, deep: bool = False, progress=None) -> ScanResult:
         mods.append(mod)
 
     cache.save()
+    if gdef.id == "warhammer3":
+        from .totalwar import mark_packs
+        mark_packs(mods)
     from .workshop_names import apply_titles
     apply_titles(mods)
     log.info("[%s] Scanned %s: %d mods (%d disabled, %d from Steam Workshop), %d stray files", game.id,

@@ -39,6 +39,9 @@ SEARCH_URLS = {
     "fs22": "https://www.farming-simulator.com/mods.php?title=fs2022&filter=latest&searchMod={q}",
     "stardew": "https://www.nexusmods.com/stardewvalley/search/?gsearch={q}",
     "reforger": "https://reforger.armaplatform.com/workshop?search={q}",
+    "dayz": "https://steamcommunity.com/workshop/browse/?appid=221100&searchtext={q}",
+    "warhammer3": "https://steamcommunity.com/workshop/browse/?appid=1142710&searchtext={q}",
+    "planetzoo": "https://www.nexusmods.com/planetzoo/search/?gsearch={q}",
 }
 
 
@@ -309,9 +312,15 @@ def analyze(scan: ScanResult) -> list[Issue]:
         elif gdef.id == "deadlock":
             from .deadlock import analyze_deadlock
             found = analyze_deadlock(scan.mods, game.mods_dir)
-        elif gdef.id == "arma3":
+        elif gdef.id in ("arma3", "dayz"):
             from .arma import analyze_arma3
-            found = analyze_arma3(scan.mods)
+            found = analyze_arma3(scan.mods, game_name=gdef.name, check_keys=gdef.id == "arma3")
+        elif gdef.id == "planetzoo":
+            from .planetzoo import analyze_planetzoo
+            found = analyze_planetzoo(scan.mods)
+        elif gdef.id == "warhammer3":
+            from .totalwar import analyze_warhammer3
+            found = analyze_warhammer3(scan.mods)
         elif gdef.id == "minecraft":
             from .minecraft import analyze_minecraft
             found = analyze_minecraft(scan.mods, game.mods_dir)

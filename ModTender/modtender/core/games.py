@@ -78,6 +78,15 @@ KNOWN_GAMES: tuple[GameDef, ...] = (
             folder_prefix="@"),
     GameDef("reforger", "Arma Reforger", ("{documents}/My Games/ArmaReforger/addons",), folders_only=True),
     GameDef("snowrunner", "SnowRunner", ("{documents}/My Games/SnowRunner/base/Mods",)),
+    GameDef("dayz", "DayZ", ("{steam:DayZ}",), steam_appid=221100, folders_only=True, folder_prefix="@"),
+    GameDef("warhammer3", "Total War: Warhammer III", ("{steam:Total War WARHAMMER III}/data",),
+            extensions=(".pack",), allow_folders=False, steam_appid=1142710,
+            # Creative Assembly's own packs (the header check in totalwar.py catches the rest).
+            protected_rule=r"^(audio|boot|campaign_variants|data|local_[a-z]{2}|models\d*|movies\d*|shaders\d*|"
+                           r"terrain\d*|tiles\d*|variants\d*|warmachines\d*|blood|animations?)(_\w+)?\.pack$"),
+    GameDef("planetzoo", "Planet Zoo", ("{steam:Planet Zoo}/win64/ovldata",), folders_only=True, steam_appid=703080,
+            # Frontier's own content folders sit next to the mods in ovldata.
+            protected_rule=r"^(Content\w*|GameMain\w*|Init\w*|Shared\w*|Frontier\w*)$"),
 )
 
 GAME_DEFS = {g.id: g for g in KNOWN_GAMES}

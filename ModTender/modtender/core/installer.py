@@ -77,8 +77,9 @@ def _install_one(game, src: Path, result: InstallResult) -> None:
     ext = src.suffix.lower()
     if not src.is_file():
         if src.is_dir() and gdef.allow_folders:
-            _place_tree(game, src, game.mods_dir / src.name, result)
-            result.installed.append(f"{src.name} (folder)")
+            name = src.name if src.name.startswith(gdef.folder_prefix) else gdef.folder_prefix + src.name
+            _place_tree(game, src, game.mods_dir / name, result)
+            result.installed.append(f"{name} (folder)")
             return
         raise InstallError("drop the downloaded file, not a folder" if src.is_dir() else "file not found")
     if ext in UNSUPPORTED_ARCHIVES:
@@ -173,12 +174,20 @@ def _bepinex(game, src, zf, members, result) -> None:
 def _folders(game, src, zf, members, result) -> None:
     tops = {PurePosixPath(m).parts[0] for m in members}
     all_dirs = all(len(PurePosixPath(m).parts) > 1 for m in members)
-    base = game.mods_dir if all_dirs else game.mods_dir / src.stem
+    prefix = game.definition.folder_prefix  # Arma 3 / DayZ only see folders named @Something
+    if prefix and {t.lower() for t in tops} & {"addons", "keys", "mod.cpp", "meta.cpp"}:
+        all_dirs = False  # the zip holds one mod's insides (addons/, keys/): put them in one @folder
+
+    def named(top: str) -> str:
+        return top if not prefix or top.startswith(prefix) else prefix + top
+
     for top in (tops if all_dirs else {src.stem}):
-        _move_aside(game, game.mods_dir / top, result)
+        _move_aside(game, game.mods_dir / named(top), result)
     for m in members:
-        _extract(game, zf, m, base / m, result, aside=False)
-    names = sorted(tops) if all_dirs else [src.stem]
+        parts = PurePosixPath(m).parts
+        rel = PurePosixPath(named(parts[0]), *parts[1:]) if all_dirs else PurePosixPath(named(src.stem), m)
+        _extract(game, zf, m, game.mods_dir / rel, result, aside=False)
+    names = sorted(named(t) for t in tops) if all_dirs else [named(src.stem)]
     result.installed.append(", ".join(f"{n} (folder)" for n in names))
 
 

@@ -331,8 +331,18 @@ class ModsPage(Page):
         self.filter.addItems(["All mods", "Enabled", "Disabled", "With issues", "Steam Workshop", "Local files"])
         self.filter.setMinimumWidth(150)
         self.filter.currentIndexChanged.connect(self.refresh)
+        from PySide6.QtWidgets import QMenu
+        self.profile_btn = QPushButton("Profile", objectName="More")
+        self.profile_btn.setIcon(icon("layers"))
+        self.profile_btn.setIconSize(QSize(15, 15))
+        self.profile_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.profile_btn.setToolTip("Save which mods are on as a profile, and switch between profiles in one click")
+        self.profile_menu = QMenu(self.profile_btn)
+        self.profile_menu.aboutToShow.connect(lambda: win.fill_profile_menu(self.profile_menu))
+        self.profile_btn.setMenu(self.profile_menu)
         bar.addWidget(self.search, 1)
         bar.addWidget(self.filter)
+        bar.addWidget(self.profile_btn)
         self.root.addLayout(bar)
 
         self.table = make_table(self.COLS)
@@ -381,6 +391,7 @@ class ModsPage(Page):
         self.table.setRowCount(0)
         self.more_actions["Open Workshop page"].setVisible(bool(scan and any(m.workshop for m in scan.mods)))
         self.upd_button.setVisible(bool(scan and scan.game.definition.id == "minecraft"))
+        self.profile_btn.setText(self.win.profile_label())
         if scan is None:
             self.subheading.setText("Scan a game to see its mods.")
             return

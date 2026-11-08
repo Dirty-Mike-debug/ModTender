@@ -20,6 +20,7 @@ APP_IDS = {
     "witcher3": 292030, "cyberpunk": 1091500, "bg3": 1086940, "valheim": 892970, "rimworld": 294100,
     "ets2": 227300, "ats": 270880, "sims4": 1222670, "cs2": 949230, "snowrunner": 1465360,
     "arma3": 107410, "reforger": 1874880, "deadlock": 1422450,
+    "dayz": 221100, "warhammer3": 1142710, "planetzoo": 703080,
 }
 
 # What tends to break after a patch, per game: (what to look for, advice).
@@ -61,6 +62,15 @@ RISKS = {
     "reforger": ("Almost every mod",
                  "Reforger updates often change things mods rely on. The Workshop menu shows which mods have "
                  "updates; servers won't let you join until your mods match theirs again."),
+    "dayz": ("Almost every mod, starting with Community Framework (CF)",
+             "After a DayZ update, wait for CF and Dabs Framework to update first. Servers won't let you join until "
+             "your mods match theirs, and the DayZ Launcher re-downloads them when they do."),
+    "warhammer3": ("Mods that change units, factions or scripts",
+                   "Big Warhammer III patches break many mods until they're updated. Turn mods off in the launcher "
+                   "before a campaign, and don't continue a modded campaign until its mods are updated."),
+    "planetzoo": ("ACSE and new-species mods",
+                  "After a Planet Zoo update, update ACSE first: most species mods need it. Remove mods that "
+                  "haven't been updated if the game won't load."),
     "rimworld": ("Mods made for the previous version",
                  "After a major RimWorld version, mods need updating to the new version. The in-game mod "
                  "list marks the ones that aren't."),

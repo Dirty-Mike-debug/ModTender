@@ -16,6 +16,8 @@ UNSUPPORTED = {
     "ets2": "the game would drop the missing mods from your profile",
     "ats": "the game would drop the missing mods from your profile",
     "arma3": "Arma 3 loads the mods you tick in the Arma 3 Launcher, not whatever is in its folder",
+    "dayz": "DayZ loads the mods you pick in the DayZ Launcher, not whatever is in its folder",
+    "warhammer3": "Total War's launcher keeps its own list of ticked mods, which this would scramble",
     "reforger": "Arma Reforger manages its mods in its own Workshop menu and would download missing ones again",
 }
 
