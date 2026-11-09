@@ -28,6 +28,7 @@ class Settings:
     start_page: str = "dashboard"
     show_greeting: bool = True
     favorite_games: list = field(default_factory=list)
+    modpack_updates: list = field(default_factory=list)  # modpack game ids where Mod updates was allowed anyway
     # Automatic backups: game id -> {"every": "off" | "daily" | "weekly", "on_change": bool}
     auto_backups: dict = field(default_factory=dict)  # version that ran last time, to say "Updated to …" once
     update_repo: str = ""  # overrides modtender.UPDATE_REPO when set

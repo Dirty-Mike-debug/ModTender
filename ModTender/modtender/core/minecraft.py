@@ -303,6 +303,18 @@ def instance_info(mods_dir: Path) -> tuple[str, str]:
     return (loader if loader in LOADER_NAMES else ""), version
 
 
+def modpack_name(mods_dir: Path) -> str:
+    """The modpack a CurseForge instance was installed from ('' for instances you put together yourself)."""
+    try:
+        data = json.loads((mods_dir.parent / "minecraftinstance.json").read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return ""
+    pack = data.get("installedModpack") or {}
+    if not isinstance(pack, dict) or not (pack.get("addonID") or pack.get("installedFile")):
+        return ""
+    return str(data.get("name") or (pack.get("installedFile") or {}).get("displayName") or "this modpack")
+
+
 def _compatible(instance: str, mc_version: str, mod_loaders: list[str], has_connector: bool) -> bool:
     ok = {instance}
     if instance == "quilt":

@@ -1058,7 +1058,25 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, APP_NAME, "Scan the game first.")
             return
         from ..core import modupdates
+        from ..core.minecraft import modpack_name
         game, mods = self.game, list(self.scan.mods)
+        pack = modpack_name(game.mods_dir)
+        if pack and game.id not in self.settings.modpack_updates:
+            box = QMessageBox(self)
+            box.setWindowTitle("Mod updates")
+            box.setIcon(QMessageBox.Icon.Information)
+            box.setText(f"{pack} is a modpack, so ModTender leaves its mods alone.")
+            box.setInformativeText(
+                "The pack's makers test all its mods together at these exact versions. Updating single mods "
+                "can stop the game starting, and you won't be able to join servers that run the pack.\n\n"
+                "To get newer mods, update the whole pack in CurseForge instead.")
+            box.addButton(QMessageBox.StandardButton.Ok)
+            allow = box.addButton("Allow for this pack anyway", QMessageBox.ButtonRole.ActionRole)
+            box.exec()
+            if box.clickedButton() is not allow:
+                return
+            self.settings.modpack_updates.append(game.id)
+            self.save_settings()
 
         def failed(message):
             QMessageBox.warning(self, "Mod updates", message.split("\n\n")[0])

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.29.4
+- Mod updates now leaves CurseForge modpacks (like ATM10) alone. Packs are tested at exact mod versions, and updating single mods can stop the game starting or block joining servers that run the pack. Update the whole pack in CurseForge instead. If you really want to, there's an "Allow for this pack anyway" button. Instances you put together yourself work as before.
+
 ## 0.29.3
 - **Undo mod updates** (Minecraft: Mods page → More). Lists every mod that has an older version waiting in disabled mods, and puts the old versions back in one click: the update is turned off, nothing is deleted. Works for updates made with earlier versions of ModTender too.
 - ModTender now remembers each mod update it installs, so it always knows which version to go back to.
