@@ -15,7 +15,8 @@ import shutil
 import urllib.error
 import urllib.request
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from pathlib import Path
 
 from .. import UPDATE_REPO, __version__
 from . import paths
@@ -179,9 +180,97 @@ def apply_updates(game, updates: list[ModUpdate], progress=None) -> tuple[list[s
                 from .fixer import _quarantine
                 _quarantine(game, target)
             part.replace(target)
+            _remember_update(game.id, u)
             done.append(f"{u.title}: {u.current} → {u.new}")
         except (UpdateCheckError, urllib.error.URLError, OSError) as exc:
             problems.append(f"{u.title}: {exc}")
             part.unlink(missing_ok=True)
     log.info("[%s] Updated %d mod(s), %d failed", game.id, len(done), len(problems))
+    return done, problems
+
+
+# ---------------------------------------------------------------- undoing updates
+
+def _history_file(game_id: str) -> Path:
+    folder = paths.data_dir() / "mod_updates"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / f"{re.sub(r'[^A-Za-z0-9_.-]', '_', game_id)}.json"
+
+
+def _history(game_id: str) -> list[dict]:
+    try:
+        data = json.loads(_history_file(game_id).read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def _remember_update(game_id: str, u: ModUpdate) -> None:
+    from datetime import datetime
+    items = [h for h in _history(game_id) if h.get("new") != u.filename]
+    items.append({"old": u.mod_name, "new": u.filename, "title": u.title, "from": u.current, "to": u.new,
+                  "when": datetime.now().isoformat(timespec="seconds")})
+    try:
+        _history_file(game_id).write_text(json.dumps(items[-500:], indent=1, ensure_ascii=False), encoding="utf-8")
+    except OSError:
+        pass
+
+
+@dataclass
+class Rollback:
+    title: str
+    new: object  # the Mod that's on now (the update)
+    old: object  # the disabled Mod it replaced
+    from_version: str
+    to_version: str
+
+
+def rollbacks(game, mods: list) -> list[Rollback]:
+    """Updates that can be undone: the new version is on and the old one is waiting in disabled mods.
+    Uses ModTender's update history, and for updates made before it kept one, pairs a disabled jar
+    with an enabled jar of the same mod id."""
+    on = {m.name: m for m in mods if m.enabled}
+    off = {m.name: m for m in mods if not m.enabled}
+    out, used = [], set()
+    for h in reversed(_history(game.id)):
+        new, old = on.get(h.get("new", "")), off.get(h.get("old", ""))
+        if new and old and new.name not in used and old.name not in used:
+            out.append(Rollback(h.get("title") or new.display_name, new, old, str(h.get("to", "")),
+                                str(h.get("from", ""))))
+            used |= {new.name, old.name}
+    by_id: dict[str, list] = {}
+    for m in mods:
+        if m.mod_id and m.name.lower().endswith(".jar") and m.name not in used:
+            by_id.setdefault(m.mod_id.lower(), []).append(m)
+    for group in by_id.values():
+        news = [m for m in group if m.enabled]
+        olds = [m for m in group if not m.enabled]
+        if len(news) == 1 and len(olds) == 1 and _newer(news[0].version, olds[0].version):
+            out.append(Rollback(news[0].display_name, news[0], olds[0], news[0].version or "?",
+                                olds[0].version or "?"))
+    return sorted(out, key=lambda r: r.title.lower())
+
+
+def _newer(a: str, b: str) -> bool:
+    """True when version a is newer than b (so the enabled jar is the update, not something already undone)."""
+    from .issues import version_key
+    return bool(a and b) and version_key(a) > version_key(b)
+
+
+def undo(game, items: list[Rollback]) -> tuple[list[str], list[str]]:
+    """Turn the update off and its old version back on, for each item."""
+    from . import manager
+    done, problems = [], []
+    for r in items:
+        try:
+            parked = manager.disable_mod(game, r.new)
+            try:
+                manager.enable_mod(game, r.old)
+            except Exception:
+                manager.enable_mod(game, replace(r.new, path=parked, enabled=False))  # put the update back
+                raise
+            done.append(f"{r.title}: back to {r.to_version}")
+        except Exception as exc:  # noqa: BLE001 - report every failure, keep going
+            problems.append(f"{r.title}: {exc}")
+    log.info("[%s] Undid %d mod update(s), %d failed", game.id, len(done), len(problems))
     return done, problems

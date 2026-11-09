@@ -302,6 +302,8 @@ class ModsPage(Page):
         more, self.more_actions = more_button([
             ("Scan for viruses", win.scan_for_viruses, "shield",
              "Check every mod with your antivirus. Mods checked in the last 30 days are skipped."),
+            ("Undo mod updates…", win.undo_mod_updates, "update",
+             "Go back to the versions you had before updating, if an update broke something"),
             None,
             ("Match mods with a server or friend…", win.compare_mod_list, "users",
              "See what's missing or different compared with a server, a friend or a modpack"),
@@ -391,6 +393,7 @@ class ModsPage(Page):
         self.table.setRowCount(0)
         self.more_actions["Open Workshop page"].setVisible(bool(scan and any(m.workshop for m in scan.mods)))
         self.upd_button.setVisible(bool(scan and scan.game.definition.id == "minecraft"))
+        self.more_actions["Undo mod updates…"].setVisible(bool(scan and scan.game.definition.id == "minecraft"))
         self.profile_btn.setText(self.win.profile_label())
         if scan is None:
             self.subheading.setText("Scan a game to see its mods.")

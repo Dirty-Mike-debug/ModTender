@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.29.3
+- **Undo mod updates** (Minecraft: Mods page → More). Lists every mod that has an older version waiting in disabled mods, and puts the old versions back in one click: the update is turned off, nothing is deleted. Works for updates made with earlier versions of ModTender too.
+- ModTender now remembers each mod update it installs, so it always knows which version to go back to.
+
 ## 0.29.2
 - Minecraft: jars that Forge/NeoForge refuse to load ("Missing ModLoader" / "not a valid mod file") are now flagged as critical on the Issues page, with one-click quarantine. These stop the whole game from starting, and the crash report usually blames a different mod.
 - Mod updates now check each download before swapping it in. If the new file isn't a valid mod for your loader, it's refused and your current version is kept.

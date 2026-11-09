@@ -1095,6 +1095,29 @@ class MainWindow(QMainWindow):
         self._run(f"Updating {len(chosen)} mod(s)…", lambda progress: modupdates.apply_updates(game, chosen, progress),
                   on_done=done)
 
+    def undo_mod_updates(self):
+        if not self.game or not self.scan:
+            QMessageBox.information(self, APP_NAME, "Scan the game first.")
+            return
+        from ..core import modupdates
+        items = modupdates.rollbacks(self.game, self.scan.mods)
+        if not items:
+            QMessageBox.information(self, "Undo mod updates",
+                                    "There are no updated mods with an old version waiting in disabled mods.")
+            return
+        from .rollback_dialog import RollbackDialog
+        dlg = RollbackDialog(self, self.game, items)
+        if not (dlg.exec() and dlg.chosen):
+            return
+        ok, problems = modupdates.undo(self.game, dlg.chosen)
+        parts = []
+        if ok:
+            parts.append(f"Went back on {len(ok)} mod(s):\n" + "\n".join(f"   {l}" for l in ok[:30]))
+        if problems:
+            parts.append("Couldn't change:\n" + "\n".join(f"   {l}" for l in problems[:30]))
+        QMessageBox.information(self, "Undo mod updates", "\n\n".join(parts) or "Nothing changed.")
+        self.start_scan()
+
     def reveal(self, path):
         reveal_in_explorer(Path(path))
 
