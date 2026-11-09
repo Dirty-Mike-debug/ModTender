@@ -43,6 +43,7 @@ class ModUpdate:
     size: int
     project_id: str
     published: str
+    loader: str = ""  # the instance's mod loader: the download is checked against it before it's swapped in
 
     @property
     def page(self) -> str:
@@ -129,7 +130,7 @@ def check_updates(game, mods: list, progress=None) -> CheckResult:
             str(new.get("version_number", "")), str(new.get("version_type", "release")),
             str(file.get("url", "")), str(file.get("filename", "")),
             str((file.get("hashes") or {}).get("sha1", "")), int(file.get("size") or 0),
-            str(new.get("project_id", "")), str(new.get("date_published", ""))[:10]))
+            str(new.get("project_id", "")), str(new.get("date_published", ""))[:10], loader))
     updates.sort(key=lambda u: u.title.lower())
     log.info("[%s] Mod update check: %d jars, %d known to Modrinth, %d updates (%s %s)", game.id, len(jars),
              len(current), len(updates), LOADER_NAMES.get(loader, loader), mc)
@@ -156,6 +157,11 @@ def apply_updates(game, updates: list[ModUpdate], progress=None) -> tuple[list[s
                     out.write(chunk)
             if u.sha1 and h.hexdigest().lower() != u.sha1.lower():
                 raise UpdateCheckError("the download didn't match Modrinth's checksum")
+            if u.loader:
+                from .minecraft import jar_problem
+                why = jar_problem(part, u.loader)
+                if why:
+                    raise UpdateCheckError(f"{why}, so it wasn't installed. Your current version was kept.")
             from . import virusscan
             verdict = virusscan.scan_file(part)
             if verdict.flagged:

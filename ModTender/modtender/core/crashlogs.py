@@ -224,6 +224,13 @@ def _minecraft_log(path: Path, text: str, when: datetime) -> CrashReport:
             f", but {have} is installed" if have and have != "[MISSING]" else f", but {need} isn't installed")
         _add(suspects, by, reason)
         kind, summary = "crash", "Minecraft couldn't start: a mod is missing something it needs"
+    for m in re.finditer(r"File (?:mods[\\/])?([^\s\\/]+\.jar) is not a valid mod file", text):
+        _add(suspects, m.group(1), "Forge/NeoForge says it isn't a valid mod file, so mod loading stopped")
+        kind, summary = "crash", "Minecraft couldn't start: a file in the mods folder isn't a valid mod"
+    if kind == "crash":
+        # A file the loader rejected outright is the answer; the rest of the log is fallout from it.
+        return CrashReport(path, kind, when, summary, _ranked(suspects),
+                           _excerpt(text, r"(is not a valid mod file|InvalidModFileException)"))
     for m in re.finditer(r"Failed to create mod instance\. ModID: ([\w\-.]+)", text):
         _add(suspects, m.group(1).rstrip("."), "Failed to load")
     for m in re.finditer(r"(?:Failed to (?:create|load) mod|Exception (?:loading|caught during firing event) .*?) "

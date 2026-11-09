@@ -59,6 +59,40 @@ def read_toml(data: dict | None, text: str, neo_file: bool) -> tuple[str, str]:
     return loader, req
 
 
+def toml_missing_loader(parsed: dict | None, text: str) -> bool:
+    """Forge/NeoForge refuse to start ("Missing ModLoader in file") when mods.toml has no modLoader key."""
+    if isinstance(parsed, dict):
+        return not parsed.get("modLoader")
+    return not re.search(r"^\s*modLoader\s*=", text, re.M)
+
+
+def jar_problem(path, loader: str) -> str:
+    """Why this jar won't load with the given loader ('' when it looks fine). Used before swapping in an update."""
+    import zipfile
+    try:
+        with zipfile.ZipFile(path) as zf:
+            names = {n.lower(): n for n in zf.namelist()}
+            if loader in ("forge", "neoforge"):
+                toml = names.get("meta-inf/neoforge.mods.toml") if loader == "neoforge" else None
+                toml = toml or names.get("meta-inf/mods.toml")
+                if not toml:
+                    return f"the new file isn't a {LOADER_NAMES[loader]} mod"
+                text = zf.read(toml).decode("utf-8", errors="ignore")
+                try:
+                    import tomllib
+                    parsed = tomllib.loads(text)
+                except Exception:
+                    parsed = None
+                if toml_missing_loader(parsed, text):
+                    return f"the new file isn't a valid {LOADER_NAMES[loader]} mod (no modLoader in its mods.toml)"
+            elif loader in ("fabric", "quilt"):
+                if "fabric.mod.json" not in names and "quilt.mod.json" not in names:
+                    return f"the new file isn't a {LOADER_NAMES[loader]} mod"
+    except (OSError, zipfile.BadZipFile):
+        return "the download isn't a valid .jar"
+    return ""
+
+
 PLATFORM_IDS = {"minecraft", "java", "forge", "neoforge", "fabricloader", "quilt_loader", "fml", "javafml"}
 
 

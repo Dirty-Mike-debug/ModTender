@@ -219,7 +219,10 @@ def _apply_mods_toml(mod: Mod, data: bytes, neo_file: bool = False) -> None:  # 
                 km = re.search(rf'^\s*{key}\s*=\s*"([^"]*)"', m.group(1), re.M)
                 if km:
                     entry[key] = km.group(1)
-    from .minecraft import read_toml
+    from .minecraft import read_toml, toml_missing_loader
+    if toml_missing_loader(parsed, text) and not mod.corrupt:
+        mod.corrupt = ("Not a valid mod file: Forge/NeoForge refuses to start with it (its mods.toml has no "
+                       "modLoader line). It's usually a build for a different Minecraft version.")
     try:
         loader, req = read_toml(parsed, text, neo_file)
     except Exception:  # an unusual mods.toml must never stop the scan

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.29.2
+- Minecraft: jars that Forge/NeoForge refuse to load ("Missing ModLoader" / "not a valid mod file") are now flagged as critical on the Issues page, with one-click quarantine. These stop the whole game from starting, and the crash report usually blames a different mod.
+- Mod updates now check each download before swapping it in. If the new file isn't a valid mod for your loader, it's refused and your current version is kept.
+- Crash log reader: names the file when the log says "File mods\\X.jar is not a valid mod file", and ignores the fallout errors after it.
+
 ## 0.29.1
 - Crash log reader: Minecraft crashes like "Mod 'architectury' is not available!" while starting are a side effect of another mod failing to load first. ModTender no longer blames the mods in the stack trace for these; it reads latest.log to find the mod that actually failed, or says so plainly if it can't tell.
 - Crash log reader: catches NeoForge's "Failed to create mod instance. ModID: …" lines and more mixin notes in stack traces.
