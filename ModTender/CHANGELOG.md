@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.29.1
+- Crash log reader: Minecraft crashes like "Mod 'architectury' is not available!" while starting are a side effect of another mod failing to load first. ModTender no longer blames the mods in the stack trace for these; it reads latest.log to find the mod that actually failed, or says so plainly if it can't tell.
+- Crash log reader: catches NeoForge's "Failed to create mod instance. ModID: …" lines and more mixin notes in stack traces.
+
 ## 0.29.0
 - **Mod profiles** (Mods page → Profile). Save which mods are on as a named profile ("Multiplayer", "Solo heavy mods"…) and switch between them in one click. ModTender turns the profile's mods on and the rest off. Nothing is deleted, and the setup you had before is saved as "Before switching" so you can undo. The button shows which profile matches your mods right now. Free: 2 profiles per game; Pro: unlimited. Not available for games whose launcher or load order file decides what loads (Skyrim, Fallout 4, BG3, RimWorld, Arma, DayZ, Total War).
 - **DayZ.** @mods in the game folder plus Workshop mods, a check for two mods shipping the same addon, crash log reading (.RPT), game update warnings and Play. Installing a zip puts it in an @folder automatically.

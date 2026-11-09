@@ -166,14 +166,35 @@ def _minecraft_crash(path: Path, text: str, when: datetime) -> CrashReport:
                 suspects[m.group(2).lower()].hits += 5
     for m in re.finditer(r"^\s*Mod File:\s*(.+\.jar)\s*$", text, re.M):
         _add(suspects, Path(m.group(1).replace("\\", "/")).name, "The crash happened while loading this mod file")
+    excerpt = _excerpt(text, r"^(Description|Caused by|\S+Exception|\S+Error)")
+    knock_on = re.search(r"Mod '([\w\-.]+)' is not available", text.split("A detailed walkthrough", 1)[0])
+    if knock_on and not suspects:
+        # "Mod 'architectury' is not available!" while starting: a mod failed to load earlier, and NeoForge
+        # carried on until something tripped over it. The mods in the stack trace are victims, not the cause.
+        # The real error is in latest.log next to the crash-reports folder.
+        log_file = path.parent.parent / "logs" / "latest.log"
+        real = None
+        try:
+            if log_file.is_file() and abs(log_file.stat().st_mtime - path.stat().st_mtime) < 15 * 60:
+                with open(log_file, "rb") as fh:
+                    real = _minecraft_log(log_file, fh.read(MAX_READ).decode("utf-8", errors="replace"), when)
+        except OSError:
+            real = None
+        side = (f"The '{knock_on.group(1)}' error is a side effect: another mod failed to load first, and the "
+                "crash report doesn't say which.")
+        if real and real.suspects:
+            return CrashReport(path, "crash", when, f"Minecraft crashed while starting. {side} latest.log names "
+                               "the mod below.", real.suspects, real.excerpt or excerpt)
+        return CrashReport(path, "crash", when, f"Minecraft crashed while starting. {side} Look for the first "
+                           "ERROR in logs\\latest.log, or use Find broken mod to track it down.", [], excerpt)
     _stack_suspects(text, suspects)
-    return CrashReport(path, "crash", when, summary, _ranked(suspects), _excerpt(text, r"^(Description|Caused by|\S+Exception|\S+Error)"))
+    return CrashReport(path, "crash", when, summary, _ranked(suspects), excerpt)
 
 
 def _stack_suspects(text: str, suspects: dict[str, Suspect]) -> None:
     """Mixin handler names and '[in mixin config x, from mod y]' notes in the stack trace."""
     first = text.split("A detailed walkthrough of the error", 1)[0]
-    for m in re.finditer(r"from mod ([\w\-.]+)\]", first):
+    for m in re.finditer(r"from mod ([\w\-.]+)[\],}]", first):
         _add(suspects, m.group(1), "Its code appears in the crash's stack trace")
     for m in re.finditer(r"\$[a-z]{3}\d{3}\$([a-z][a-z0-9_]{2,})\$", first):  # handler$zbc000$modid$method
         _add(suspects, m.group(1), "Its code appears in the crash's stack trace")
@@ -203,8 +224,11 @@ def _minecraft_log(path: Path, text: str, when: datetime) -> CrashReport:
             f", but {have} is installed" if have and have != "[MISSING]" else f", but {need} isn't installed")
         _add(suspects, by, reason)
         kind, summary = "crash", "Minecraft couldn't start: a mod is missing something it needs"
-    for m in re.finditer(r"(?:Failed to (?:create|load) mod|Exception (?:loading|caught during firing event) .*?) ([\w\-.]+)", text):
-        _add(suspects, m.group(1), "Failed to load")
+    for m in re.finditer(r"Failed to create mod instance\. ModID: ([\w\-.]+)", text):
+        _add(suspects, m.group(1).rstrip("."), "Failed to load")
+    for m in re.finditer(r"(?:Failed to (?:create|load) mod|Exception (?:loading|caught during firing event) .*?) "
+                         r"(?!instance\b)([\w\-.]+)", text):
+        _add(suspects, m.group(1).rstrip(".,"), "Failed to load")
     if re.search(r"(Encountered an unexpected exception|Mod loading has failed|Incompatible mods? found)", text):
         kind = "crash"
         if summary.startswith("Errors"):
